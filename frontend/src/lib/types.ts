@@ -185,6 +185,7 @@ export interface Settings {
   max_clips: number
   download_subtitles: boolean
   face_detection: boolean
+  reframe_mode: string
 }
 
 export interface SystemStatus {

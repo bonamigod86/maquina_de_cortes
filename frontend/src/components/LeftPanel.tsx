@@ -513,7 +513,7 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
                   max={8}
                   value={settings.subtitle_style.words_per_line}
                   onChange={(e) => set({
-                    subtitle_style: { ...settings.subtitle_style, words_per_line: Number(e.target.value) || 6 },
+                    subtitle_style: { ...settings.subtitle_style, words_per_line: Number(e.target.value) || 5 },
                   })}
                   className="h-8 w-20"
                 />
@@ -543,6 +543,18 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
 
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground">Sistema</p>
+              <div className="flex items-center gap-2">
+                <label className="w-32 shrink-0 text-muted-foreground">Reenquadrar</label>
+                <select
+                  className="h-8 flex-1 rounded-md border border-input bg-background px-2"
+                  value={settings.reframe_mode}
+                  onChange={(e) => set({ reframe_mode: e.target.value })}
+                >
+                  <option value="auto">Automático (sem cortar quando não há rosto)</option>
+                  <option value="crop">Sempre cortar (preencher 9:16)</option>
+                  <option value="blur">Fundo desfocado (nunca cortar)</option>
+                </select>
+              </div>
               {[
                 { key: "use_gpu" as const, label: "Usar GPU (CUDA)" },
                 { key: "face_detection" as const, label: "Detecção de rosto" },

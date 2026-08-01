@@ -26,7 +26,7 @@ DEFAULT_SUBTITLE_STYLE = {
     "shadow_color": "#000000",
     "position": "bottom",
     "animation": "pop",
-    "words_per_line": 6,
+    "words_per_line": 5,
 }
 
 
@@ -48,6 +48,7 @@ class Settings(BaseModel):
     max_clips: int = 8
     download_subtitles: bool = True
     face_detection: bool = True
+    reframe_mode: str = "auto"
 
     def save(self) -> None:
         DATA_DIR.mkdir(parents=True, exist_ok=True)

@@ -1,4 +1,4 @@
-"""Geração de legendas ASS com estilos (TikTok, Instagram, Minimalista, Karaokê)."""
+﻿"""GeraÃ§Ã£o de legendas ASS com estilos (TikTok, Instagram, Minimalista, KaraokÃª)."""
 from __future__ import annotations
 
 import re
@@ -14,7 +14,7 @@ STYLE_PRESETS = {
         "shadow": True,
         "position": "bottom",
         "animation": "pop",
-        "words_per_line": 6,
+        "words_per_line": 5,
     },
     "instagram": {
         "font": "Montserrat ExtraBold",
@@ -25,7 +25,7 @@ STYLE_PRESETS = {
         "shadow": True,
         "position": "bottom",
         "animation": "fade",
-        "words_per_line": 6,
+        "words_per_line": 5,
     },
     "minimalist": {
         "font": "Segoe UI Light",
@@ -36,7 +36,7 @@ STYLE_PRESETS = {
         "shadow": False,
         "position": "bottom",
         "animation": "none",
-        "words_per_line": 6,
+        "words_per_line": 5,
     },
     "word_by_word": {
         "font": "Arial Black",
@@ -47,7 +47,7 @@ STYLE_PRESETS = {
         "shadow": True,
         "position": "bottom",
         "animation": "word_pop",
-        "words_per_line": 6,
+        "words_per_line": 5,
     },
     "karaoke": {
         "font": "Arial Black",
@@ -58,7 +58,7 @@ STYLE_PRESETS = {
         "shadow": True,
         "position": "bottom",
         "animation": "karaoke",
-        "words_per_line": 6,
+        "words_per_line": 5,
     },
 }
 
@@ -91,7 +91,7 @@ def _group_words(words: list[dict], per_line: int) -> list[list[dict]]:
 
 
 def _karaoke_line(word_chunks: list[list[dict]]) -> str:
-    """Estilo karaokê: palavra corrente destacada com tag karaoke."""
+    """Estilo karaokÃª: palavra corrente destacada com tag karaoke."""
     return "".join(f"{{\\k{int((w['end'] - w['start']) * 100)}}}{w['word']} " for w in word_chunks)
 
 
@@ -104,8 +104,8 @@ def _word_pop_line(word_chunks: list[list[dict]], base_style: dict) -> str:
 
 
 def _ass_line(text: str, start: float, end: float, style: str, anim: str) -> str:
-    # campo Effect preenchido com "0" é obrigatório: vazio desloca o texto
-    # para o campo Effect (e MarginV fica vazio), quebrando posição e conteúdo.
+    # campo Effect preenchido com "0" Ã© obrigatÃ³rio: vazio desloca o texto
+    # para o campo Effect (e MarginV fica vazio), quebrando posiÃ§Ã£o e conteÃºdo.
     fmt = f"{_ass_time(start)},{_ass_time(end)},{style}"
     if anim == "fade":
         return f"Dialogue: 0,{fmt},0,0,0,0,,{{\\fad(150,150)}}{text}"
@@ -135,10 +135,10 @@ def build_ass(
     pos_key = merged.get("position", "bottom")
     pos = POS_Y.get(pos_key, "0.85")
     anim = merged.get("animation", "pop")
-    per_line = max(1, int(merged.get("words_per_line", 6)))
+    per_line = max(1, int(merged.get("words_per_line", 5)))
 
-    # ASS: Alignment + MarginV. Para alinhamento inferior, MarginV é a distância
-    # da base do vídeo (não a coordenada Y) — valor grande empurra o texto para cima.
+    # ASS: Alignment + MarginV. Para alinhamento inferior, MarginV Ã© a distÃ¢ncia
+    # da base do vÃ­deo (nÃ£o a coordenada Y) â€” valor grande empurra o texto para cima.
     play_res_y = 1920
     if pos_key == "top":
         align = 8
@@ -206,7 +206,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text = " ".join(w["word"] for w in line_words)
             events.append(_ass_line(text, t0, t1, style, anim))
 
-    # espaça linhas que se sobrepõem
+    # espaÃ§a linhas que se sobrepÃµem
     events = _fix_overlaps(events)
 
     content = header + "\n".join(events) + "\n"
@@ -215,7 +215,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
 
 def _fix_overlaps(events: list[str]) -> list[str]:
-    """Empurra legendas sobrepostas para não exibirem ao mesmo tempo."""
+    """Empurra legendas sobrepostas para nÃ£o exibirem ao mesmo tempo."""
     parsed: list[list] = []
     for e in events:
         m = re.match(r"Dialogue: \d+,(\d+:\d+:\d+\.\d+),(\d+:\d+:\d+\.\d+),(Main|Secondary),(.*)", e, re.DOTALL)
@@ -234,7 +234,7 @@ def _fix_overlaps(events: list[str]) -> list[str]:
 
 
 def _rel_words(words: list[dict], clip_start: float, clip_end: float) -> list[dict]:
-    """Palavras do trecho com tempos relativos ao início do corte."""
+    """Palavras do trecho com tempos relativos ao inÃ­cio do corte."""
     out = []
     for w in words:
         ws = w["start"] - clip_start
@@ -247,12 +247,12 @@ def _rel_words(words: list[dict], clip_start: float, clip_end: float) -> list[di
 
 
 def _phrase_groups(words: list[dict], per_line: int = 6) -> list[list[dict]]:
-    """Agrupa palavras em linhas de legenda por frase (pontuação) ou limite."""
+    """Agrupa palavras em linhas de legenda por frase (pontuaÃ§Ã£o) ou limite."""
     groups: list[list[dict]] = []
     cur: list[dict] = []
     for w in words:
         cur.append(w)
-        if (w["word"].rstrip(".,!?…") != w["word"] and len(cur) >= 2) or len(cur) >= per_line:
+        if (w["word"].rstrip(".,!?â€¦") != w["word"] and len(cur) >= 2) or len(cur) >= per_line:
             groups.append(cur)
             cur = []
     if cur:
@@ -302,7 +302,7 @@ def _vtt_time(seconds: float) -> str:
 
 
 def build_txt(sentences: list[dict], out_path: str) -> str:
-    """Gera transcrição em texto puro com marcações de tempo."""
+    """Gera transcriÃ§Ã£o em texto puro com marcaÃ§Ãµes de tempo."""
     lines = []
     for s in sentences:
         t = f"{int(s['start']) // 60:02d}:{int(s['start']) % 60:02d}"
@@ -312,7 +312,7 @@ def build_txt(sentences: list[dict], out_path: str) -> str:
 
 
 def generate_full(project_id: str, sentences: list[dict], settings=None) -> dict[str, str]:
-    """Gera legendas do vídeo inteiro (srt/vtt/txt) em subtitles/."""
+    """Gera legendas do vÃ­deo inteiro (srt/vtt/txt) em subtitles/."""
     from app.services.pipeline.export import all_words
     from app.services.project import ProjectStore
 
@@ -323,7 +323,7 @@ def generate_full(project_id: str, sentences: list[dict], settings=None) -> dict
     per_line = 6
     if settings is not None:
         try:
-            per_line = max(1, int(settings.subtitle_style.get("words_per_line", 6)))
+            per_line = max(1, int(settings.subtitle_style.get("words_per_line", 5)))
         except (AttributeError, TypeError, ValueError):
             pass
     paths = {

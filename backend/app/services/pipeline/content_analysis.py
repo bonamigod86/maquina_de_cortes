@@ -118,6 +118,8 @@ def analyze_content(
         raw = provider.chat_json(SYSTEM_PROMPT, prompt, temperature=settings.ai_temperature)
     except Exception:
         raw = {}
+    if not isinstance(raw, dict):
+        raw = {}
     if on_progress:
         on_progress(0.9)
 

@@ -14,20 +14,26 @@ def register_cuda_paths() -> None:
     """Adiciona diretórios das DLLs CUDA (nvidia-*-cu12) ao PATH antes do ctranslate2.
 
     No Windows, o ctranslate2 carrega as DLLs via PATH do processo.
+    Idempotente: não duplica entradas já presentes (evita estourar o limite
+    de ~32767 caracteres do PATH no Windows).
     """
     if os.name != "nt":
         return
     nvidia = _site_packages() / "nvidia"
     if not nvidia.exists():
         return
+    current = os.environ.get("PATH", "") or ""
+    parts = current.split(";") if current else []
     added: list[str] = []
     for pkg in ("cublas", "cudnn", "cuda_nvrtc", "cufft", "curand"):
         bin_dir = nvidia / pkg / "bin"
         if bin_dir.exists():
-            added.append(str(bin_dir))
+            p = str(bin_dir)
+            if p not in parts:
+                parts.insert(0, p)
+                added.append(p)
     if added:
-        current = os.environ.get("PATH", "")
-        os.environ["PATH"] = ";".join(added) + ";" + current
+        os.environ["PATH"] = ";".join(parts)
 
 
 def cuda_available() -> bool:

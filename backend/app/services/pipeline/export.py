@@ -67,9 +67,20 @@ def render_clip(
     sub_svc.build_ass(words, clip.source_start, clip.source_end, style_cfg, str(ass_path))
     sub_svc.build_srt(words, clip.source_start, clip.source_end, str(srt_path))
 
+    # filtro subtitles do ffmpeg (Windows): caminho sem aspas, ":" escapado como
+    # "\\:" (dois backslashes exigidos pelo parser do filtro); fontes resolvidas
+    # via FONTCONFIG_FILE (ver app/utils/ffmpeg.py).
+    def _filter_path(p: str) -> str:
+        return p.replace("\\", "/").replace(":", "\\\\:")
+
+    ass_path_filter = _filter_path(str(ass_path))
+
     sw, sh = reframe_svc.scaled_dims(width, height)
+    mode = getattr(settings, "reframe_mode", "auto")
+    landscape = width / height > 1080 / 1920
+
     anchors = None
-    if settings.face_detection:
+    if mode != "blur" and settings.face_detection:
         anchors = reframe_svc.sample_face_anchors(
             video_path,
             clip.source_start,
@@ -77,30 +88,34 @@ def render_clip(
             on_progress=lambda p: on_progress(p * 0.35) if on_progress else None,
             cancel_event=cancel_event,
         )
-    if anchors:
-        # as âncoras usam tempo absoluto (source); o filtro ffmpeg usa t relativo
-        # ao início do corte (-ss), então desloca para [0, duração].
-        anchors = [(t - clip.source_start, cx, cy) for t, cx, cy in anchors]
-        x_expr, y_expr = reframe_svc.crop_expressions(anchors, sw, sh)
+
+    # blur: preserva o quadro inteiro (sem cortar) centralizando sobre fundo desfocado
+    use_blur = mode == "blur" or (mode == "auto" and landscape and not anchors)
+
+    if use_blur:
+        vf = (
+            "split=2[a][b];"
+            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
+            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
+            f"[bg][fg]overlay=(W-w)/2:(H-h)/2,"
+            f"subtitles={ass_path_filter},"
+            "fps=30,format=yuv420p"
+        )
     else:
-        x_expr, y_expr = reframe_svc.center_crop_exprs(sw, sh)
+        if anchors:
+            # as âncoras usam tempo absoluto (source); o filtro ffmpeg usa t relativo
+            # ao início do corte (-ss), então desloca para [0, duração].
+            anchors = [(t - clip.source_start, cx, cy) for t, cx, cy in anchors]
+            x_expr, y_expr = reframe_svc.crop_expressions(anchors, sw, sh)
+        else:
+            x_expr, y_expr = reframe_svc.center_crop_exprs(sw, sh)
+        vf = (
+            f"scale={sw}:{sh}:flags=lanczos,"
+            f"crop=1080:1920:'{x_expr}':'{y_expr}',"
+            f"subtitles={ass_path_filter},"
+            "fps=30,format=yuv420p"
+        )
 
-    # filtro subtitles do ffmpeg (Windows): caminho sem aspas,
-    # ":" escapado como "\\:" (dois backslashes exigidos pelo parser do filtro);
-    # fontes resolvidas via FONTCONFIG_FILE (ver app/utils/ffmpeg.py), fontdir
-    # não é suportado nessa versão do ffmpeg.
-    def _filter_path(p: str) -> str:
-        return p.replace("\\", "/").replace(":", "\\\\:")
-
-    ass_path_filter = _filter_path(str(ass_path))
-    # expressões de crop com vírgulas (if(lt(...))) exigem aspas simples no
-    # filtergraph, senão o parser do ffmpeg divide o filtro nos vírgulas.
-    vf = (
-        f"scale={sw}:{sh}:flags=lanczos,"
-        f"crop=1080:1920:'{x_expr}':'{y_expr}',"
-        f"subtitles={ass_path_filter},"
-        "fps=30,format=yuv420p"
-    )
     preset, crf = _export_quality_crf(settings.export_quality)
     duration = clip.source_end - clip.source_start
     ff.run_ffmpeg(
