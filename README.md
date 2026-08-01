@@ -110,6 +110,12 @@ npm run dev
 
 Abra **http://localhost:5173** — o Vite encaminha `/api` e `/media` para o backend.
 
+### Atalho no Windows (`start.bat`)
+
+Na raiz do projeto há um `start.bat`: dê **duplo clique** e ele sobe o backend
+(já em execução, ele reutiliza), sobe o frontend e abre o navegador em
+http://localhost:5173 automaticamente. Feche as janelas abertas para parar.
+
 ### 3. Fluxo de uso
 
 1. Clique em **Importar** (botão com ➕/upload no painel esquerdo).
@@ -128,7 +134,7 @@ Disponíveis em **Ajustes** (ícone de engrenagem) e persistidas em `backend/dat
 |---|---|
 | Transcrição | Modelo Whisper (`tiny`, `base`, `small`, `medium`, `large-v3`), idioma (`auto`, `pt`, `en`, …) |
 | IA de conteúdo | Provedor (`ollama` / OpenAI-compat / `none`), modelo, URL base |
-| Cortes | Durações (15/30/45/60 s), máximo de cortes, qualidade de exportação |
+| Cortes | Durações (15/30/45/60 s), máximo de cortes, qualidade de exportação, reenquadramento (`automático`, `sempre cortar`, `fundo desfocado`) |
 | Legendas | Palavras por linha, tamanho, fonte |
 | Sistema | Usar GPU (CUDA), detecção de rosto, gerar legendas `.srt` |
 
