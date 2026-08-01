@@ -114,7 +114,7 @@ function VideoPlayer({ src, currentTime, onTimeUpdate }: {
           <Loader2 className="size-6 animate-spin" />
         </div>
       )}
-      <div className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] tabular-nums text-white">
+      <div className="absolute bottom-14 left-2 rounded bg-black/60 px-1.5 py-0.5 text-[11px] tabular-nums text-white">
         {fmtTime(dur * pct)} / {fmtTime(dur)}
       </div>
       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6">

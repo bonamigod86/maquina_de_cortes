@@ -110,8 +110,10 @@ export function RightPanel({ detail, selectedClipId, currentTime, onSeek, onSele
             <div
               key={clip.id}
               className={cn(
-                "overflow-hidden rounded-lg border transition-colors",
-                selected?.id === clip.id ? "border-primary/60 bg-primary/5" : "border-border bg-card",
+                "overflow-hidden rounded-lg border transition-all",
+                selected?.id === clip.id
+                  ? "border-primary bg-primary/10 ring-2 ring-primary/40"
+                  : "border-border bg-card hover:border-muted-foreground/30",
               )}
             >
               <button

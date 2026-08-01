@@ -144,23 +144,26 @@ def detect_faces(frame_bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
     return out[:3]
 
 
-def sample_face_anchors(
+def sample_faces(
     video_path: str,
     t0: float,
     t1: float,
-    out_w: int = 1080,
-    out_h: int = 1920,
+    min_face_dur: float = 0.6,
+    min_gap_dur: float = 0.5,
     on_progress=None,
     cancel_event=None,
-) -> list[tuple[float, float, float]] | None:
-    """Amostra a posição do rosto (em coords normalizadas 0-1) ao longo do trecho.
+) -> tuple[list[tuple[float, float, float]] | None, list[tuple[float, float]]]:
+    """Amostra o rosto ao longo do trecho (coords normalizadas 0-1) em uma passada.
 
-    Retorna lista de (t, cx, cy) — cx/cy normalizados entre 0 e 1.
-    None se nenhum rosto foi encontrado (fallback: centralizar).
+    Retorna (anchors, face_segments):
+      - anchors: lista de (t, cx, cy) — cx/cy normalizados entre 0 e 1,
+        suavizados com EMA. None se nenhum rosto foi encontrado (fallback).
+      - face_segments: lista de (início, fim) em tempo absoluto do source em que
+        o rosto está presente de forma consistente (histerese evita piscar).
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        return None
+        return None, []
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -169,7 +172,8 @@ def sample_face_anchors(
     cap.set(cv2.CAP_PROP_POS_MSEC, t0 * 1000)
 
     sample_interval = max(0.4, min(0.8, duration / 300))
-    anchors: list[tuple[float, float, float]] = []
+    samples: list[tuple[float, bool]] = []
+    raw_anchors: list[tuple[float, float, float]] = []
     t = t0
     found_any = False
     ema: tuple[float, float] | None = None
@@ -186,6 +190,7 @@ def sample_face_anchors(
             t += sample_interval
             continue
         faces = detect_faces(frame)
+        has_face = bool(faces)
         cx, cy = 0.5, 0.5
         if faces:
             best = max(faces, key=lambda f: f[2] * f[3])
@@ -200,20 +205,52 @@ def sample_face_anchors(
             ema = (ema[0] * 0.30 + cx * 0.70, ema[1] * 0.30 + cy * 0.70)
         # suaviza y para manter a cabeça no terço superior/superior da tela
         cy_smoothed = min(ema[1], 0.55)
-        anchors.append((round(t, 3), round(ema[0], 4), round(max(cy_smoothed, 0.15), 4)))
+        samples.append((t, has_face))
+        raw_anchors.append((t, round(ema[0], 4), round(max(cy_smoothed, 0.15), 4)))
         t += sample_interval
 
     cap.release()
-    if not anchors:
-        return None
+    if not raw_anchors:
+        return None, []
+    anchors = list(raw_anchors)
     # garante ancoras nos limites exatos
     if abs(anchors[0][0] - t0) > 0.01:
         anchors.insert(0, (t0, anchors[0][1], anchors[0][2]))
     if abs(anchors[-1][0] - t1) > 0.01:
         anchors.append((t1, anchors[-1][1], anchors[-1][2]))
     if not found_any:
-        return None
-    return anchors
+        return None, []
+    return anchors, _face_segments(samples, min_face_dur, min_gap_dur)
+
+
+def _face_segments(
+    samples: list[tuple[float, bool]],
+    min_face_dur: float = 0.6,
+    min_gap_dur: float = 0.5,
+) -> list[tuple[float, float]]:
+    """Converte amostras de presença de rosto em segmentos estáveis (histerese)."""
+    if not samples:
+        return []
+    # runs contíguos com rosto
+    runs: list[tuple[float, float]] = []
+    start: float | None = None
+    for t, has in samples:
+        if has and start is None:
+            start = t
+        elif not has and start is not None:
+            runs.append((start, t))
+            start = None
+    if start is not None:
+        runs.append((start, samples[-1][0]))
+    # junta runs separados por buracos curtos (evita piscar)
+    merged: list[list[float]] = []
+    for s, e in runs:
+        if merged and s - merged[-1][1] < min_gap_dur:
+            merged[-1][1] = e
+        else:
+            merged.append([s, e])
+    # descarta trechos de rosto muito curtos
+    return [(s, e) for s, e in merged if e - s >= min_face_dur]
 
 
 def crop_expressions(

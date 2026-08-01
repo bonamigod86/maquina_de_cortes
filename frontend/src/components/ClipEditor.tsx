@@ -124,13 +124,8 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
 
   return (
     <div className="space-y-3 border-t border-border p-3">
-      <div className="flex items-center justify-between">
+      <div>
         <p className="text-xs font-semibold text-muted-foreground">Editor do corte</p>
-        {dirty && (
-          <Button size="xs" onClick={() => void save()}>
-            Salvar alterações
-          </Button>
-        )}
       </div>
 
       <div className="space-y-2">
@@ -218,6 +213,16 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1"
+          disabled={!dirty}
+          title="Salva os ajustes de texto e do trecho selecionado"
+          onClick={() => void save()}
+        >
+          Salvar alterações
+        </Button>
         <Button size="sm" className="flex-1" onClick={() => void handleExport()} disabled={exporting || !dirty && !clip.files?.video && false}>
           {exporting ? <Loader2 className="animate-spin" /> : <Clapperboard />}
           {clip.files?.video ? "Re-renderizar" : "Renderizar 1080x1920"}

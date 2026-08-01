@@ -124,6 +124,25 @@ http://localhost:5173 automaticamente. Feche as janelas abertas para parar.
 4. Acompanhe o progresso em tempo real; ao terminar, os cortes aparecem no centro.
 5. Edite, avalie e **exporte** (individual ou todos). Os arquivos ficam em `backend/data/projects/<id>/clips/`.
 
+#### Ajustar um corte manualmente
+
+O corte gerado às vezes começa ou termina cedo demais. Para pegar alguns
+segundos a mais (ou encurtar), selecione o corte na lista da direita — abre o
+painel **Editor do corte**:
+
+1. Use os sliders **Início** e **Fim** para mover o trecho. Arraste **Início**
+   para a esquerda para começar antes (pega os segundos anteriores) e **Fim**
+   para a direita para alongar. O trecho mínimo é de 1 segundo.
+2. Clique em **Salvar alterações** (o botão fica logo acima de **Renderizar**
+   e só habilita quando algo mudou).
+3. Clique em **Re-renderizar 1080x1920** para gerar o MP4 com o novo trecho —
+   as legendas são recortadas automaticamente para o intervalo ajustado.
+4. Use **Dividir no playhead** para cortar o corte em dois no ponto onde a
+   linha de reprodução (playhead) estiver, e **Ver trecho** para pré-visualizar.
+
+Também dá para pedir o texto do corte de novo à IA: os botões ✨ ao lado do
+**Título** e da **Legenda** regeneram cada campo.
+
 ---
 
 ## ⚙️ Configurações
@@ -188,6 +207,25 @@ maquina_de_cortes/
 | Transcrição lenta | Troque o modelo para `small`/`base` em Ajustes, ou ative GPU/CUDA |
 | Sem análise semântica | Instale o Ollama e rode `ollama pull qwen2.5:7b`; senão, o app usa o modo heurístico |
 | Primeira renderização baixa um modelo | Aguarde; o download é único (fica em `backend/data/models/`) |
+
+---
+
+## ☕ Pague um café se te ajudou 🫶
+
+Se o **Máquina de Cortes** te salvou uma tarde de edição (ou algumas noites
+tentando encaixar um take no 9:16 😅), considere pagar um cafezinho pra quem
+mantém essa ferramenta de pé. **Qualquer valor conta** — de R$ 2 a R$ 20, o
+que importa é o gesto! 🙏
+
+> ### 🚀 Chave Pix: `11998636247`
+
+**Como doar em 30 segundos:**
+1. Abra o app do seu banco 📱
+2. Escolha **Pix** → **Chave Pix** (ou "Chave aleatória")
+3. Cole `11998636247` e informe o valor 💵
+4. Confirme e pronto — o meu café tá garantido! ☕✨
+
+Muito obrigado por usar e apoiar o projeto! 🚀❤️
 
 ---
 

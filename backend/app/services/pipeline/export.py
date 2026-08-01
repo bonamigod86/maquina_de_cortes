@@ -78,10 +78,12 @@ def render_clip(
     sw, sh = reframe_svc.scaled_dims(width, height)
     mode = getattr(settings, "reframe_mode", "auto")
     landscape = width / height > 1080 / 1920
+    duration = clip.source_end - clip.source_start
 
     anchors = None
+    face_segments: list[tuple[float, float]] = []
     if mode != "blur" and settings.face_detection:
-        anchors = reframe_svc.sample_face_anchors(
+        anchors, face_segments = reframe_svc.sample_faces(
             video_path,
             clip.source_start,
             clip.source_end,
@@ -89,8 +91,28 @@ def render_clip(
             cancel_event=cancel_event,
         )
 
-    # blur: preserva o quadro inteiro (sem cortar) centralizando sobre fundo desfocado
-    use_blur = mode == "blur" or (mode == "auto" and landscape and not anchors)
+    # segmentos de rosto em tempo relativo ao corte (o filtro ffmpeg usa t relativo)
+    rel_segments = [
+        (max(0.0, s - clip.source_start), min(duration, e - clip.source_start))
+        for s, e in face_segments
+    ]
+    rel_segments = [(s, e) for s, e in rel_segments if e - s >= 0.05]
+    face_dur = sum(e - s for s, e in rel_segments)
+
+    if mode == "blur":
+        use_blur, use_hybrid = True, False
+    elif mode == "auto" and landscape and not anchors:
+        use_blur, use_hybrid = True, False
+    elif mode == "auto" and landscape:
+        # rosto presente: decide entre cortar tudo, blur tudo ou híbrido.
+        if face_dur < 0.4:
+            use_blur, use_hybrid = True, False
+        elif face_dur > duration - 0.4:
+            use_blur, use_hybrid = False, False
+        else:
+            use_blur, use_hybrid = False, True
+    else:
+        use_blur, use_hybrid = False, False
 
     if use_blur:
         vf = (
@@ -98,6 +120,23 @@ def render_clip(
             "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
             "[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
             f"[bg][fg]overlay=(W-w)/2:(H-h)/2,"
+            f"subtitles={ass_path_filter},"
+            "fps=30,format=yuv420p"
+        )
+    elif use_hybrid:
+        # híbrido: take aberto (sem rosto) mostra o quadro inteiro com fundo
+        # desfocado; nos trechos com rosto o zoom 9:16 cobre a tela. Uma única
+        # passada: o overlay com enable alterna entre base (blur) e zoom (rosto).
+        anchors_shifted = [(t - clip.source_start, cx, cy) for t, cx, cy in anchors]
+        x_expr, y_expr = reframe_svc.crop_expressions(anchors_shifted, sw, sh)
+        enable = "+".join(f"between(t,{s:.2f},{e:.2f})" for s, e in rel_segments)
+        vf = (
+            "split=3[a][b][c];"
+            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
+            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[full];"
+            f"[c]scale={sw}:{sh}:flags=lanczos,crop=1080:1920:'{x_expr}':'{y_expr}'[zoom];"
+            "[bg][full]overlay=(W-w)/2:(H-h)/2:shortest=1[base];"
+            f"[base][zoom]overlay=0:0:enable='{enable}',"
             f"subtitles={ass_path_filter},"
             "fps=30,format=yuv420p"
         )
@@ -117,7 +156,6 @@ def render_clip(
         )
 
     preset, crf = _export_quality_crf(settings.export_quality)
-    duration = clip.source_end - clip.source_start
     ff.run_ffmpeg(
         [
             "-ss", str(clip.source_start),
