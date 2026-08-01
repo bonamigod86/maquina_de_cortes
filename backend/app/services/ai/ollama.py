@@ -12,7 +12,7 @@ from app.services.ai.base import LLMProvider, strip_json
 class OllamaProvider(LLMProvider):
     name = "ollama"
 
-    def __init__(self, base_url: str = "http://localhost:11434", model: str = "llama3.1") -> None:
+    def __init__(self, base_url: str = "http://localhost:11434", model: str = "qwen2.5:7b") -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
 

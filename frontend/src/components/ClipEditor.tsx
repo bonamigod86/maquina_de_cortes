@@ -245,7 +245,8 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
       {exporting && <Progress value={40} className="h-1 animate-pulse" />}
 
       {clip.scores && (
-        <div className="grid grid-cols-3 gap-1.5 text-center">
+        <>
+          <div className="grid grid-cols-3 gap-1.5 text-center">
           {(
             [
               ["Retenção", clip.scores.retention],
@@ -264,6 +265,10 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
             </div>
           ))}
         </div>
+          <p className="text-[10px] text-muted-foreground">
+            Estimativa automática do editor de IA para comparar cortes entre si.
+          </p>
+        </>
       )}
     </div>
   )

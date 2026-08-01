@@ -376,6 +376,7 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
       setSettings(saved)
       setChanged(false)
       toast.success("Configurações salvas")
+      window.dispatchEvent(new CustomEvent("settings-saved"))
       onOpenChange(false)
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar")
@@ -442,15 +443,18 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
               </div>
               <div className="flex items-center gap-2">
                 <label className="w-32 shrink-0 text-muted-foreground">Modelo</label>
-                <Input
-                  list="ai-models"
+                <select
+                  className="h-8 flex-1 rounded-md border border-input bg-background px-2"
                   value={settings.ai_model}
                   onChange={(e) => set({ ai_model: e.target.value })}
-                  className="h-8"
-                />
-                <datalist id="ai-models">
-                  {models.map((m) => <option key={m} value={m} />)}
-                </datalist>
+                >
+                  {settings.ai_model && !models.includes(settings.ai_model) && (
+                    <option value={settings.ai_model}>{settings.ai_model}</option>
+                  )}
+                  {models.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
               </div>
               <div className="flex items-center gap-2">
                 <label className="w-32 shrink-0 text-muted-foreground">URL base</label>

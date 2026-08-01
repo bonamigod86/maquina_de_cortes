@@ -1,12 +1,12 @@
 """Análise heurística de conteúdo — fallback quando não há LLM disponível.
 
-Identifica ganchos, momentos de energia, pausas dramáticas e pontuação
-forte usando apenas regras de prosódia e texto.
+Cada métrica (retenção, viralidade, educacional, compartilhamento, emoção,
+clareza) é computada de forma INDEPENDENTE, a partir de sinais observáveis
+(prosódia + texto), em vez de ser derivada de um único score de base.
 """
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from app.models.schemas import ContentAnalysis, Highlight
 
@@ -31,74 +31,124 @@ EMOTION_MARKERS = re.compile(
     r"frustrante|surpreendente|emocionante|fascinante)\b",
     re.IGNORECASE,
 )
+EDU_MARKERS = re.compile(
+    r"(\d+\s?%|\bporque\b|\bpor que\b|\bcomo\b|\bdica\b|\btruque\b|\bpasso\b|\bpassos\b|"
+    r"\bmétodo\b|\btécnica\b|\bexemplo\b|\bdiferença\b|\bresultado\b|\bestudo\b|\bpesquisa\b|"
+    r"\bregra\b|\bevite\b|\berro\b|\bprimeiro\b|\bsegundo\b|\bterceiro\b|\bporcentagem\b)",
+    re.IGNORECASE,
+)
+# Inícios que indicam continuação de um pensamento anterior (não autocontido)
+MID_THOUGHT_START = re.compile(
+    r"^(mas|então|e aí|e daí|e depois|aí (ele|ela|eu)|porque|por que|ou seja|enfim|e também|"
+    r"além disso|dessa forma|então você)\b",
+    re.IGNORECASE,
+)
+
+
+def _clamp(x: float) -> float:
+    return round(min(max(x, 0.0), 1.0), 2)
+
+
+def _length_ok(words: int) -> float:
+    """Faixa ideal para um clipe standalone: nem truncado, nem longo demais."""
+    if 8 <= words <= 30:
+        return 1.0
+    if 4 <= words <= 45:
+        return 0.6
+    return 0.3
 
 
 def heuristic_content_analysis(sentences: list[dict], signals: list[dict]) -> ContentAnalysis:
-    """Gera destaques com base em regras de texto e prosódia."""
+    """Gera destaques com métricas independentes baseadas em texto e prosódia."""
     highlights: list[Highlight] = []
     n = len(sentences)
     for i, s in enumerate(sentences):
         text = s["text"]
         low = text.lower()
-        h = Highlight(sentence_start=i, sentence_end=i, types=[], score=0.0)
-        score = 0.3
-        reasons = []
-        types: list[str] = []
+        words = len(text.split())
 
-        if HOOK_MARKERS.search(low):
-            score += 0.15
+        # Sinais binários de texto
+        hook = 1.0 if HOOK_MARKERS.search(low) else 0.0
+        question = 1.0 if "?" in text else 0.0
+        exclaim = 1.0 if "!" in text else 0.0
+        cta = 1.0 if CTA_MARKERS.search(low) else 0.0
+        story = 1.0 if STORY_MARKERS.search(low) else 0.0
+        emotion_word = 1.0 if EMOTION_MARKERS.search(low) else 0.0
+        edu = 1.0 if EDU_MARKERS.search(low) else 0.0
+
+        # Sinais prosódicos (energia, intensidade, emoção da voz)
+        sig = signals[i] if i < len(signals) else {}
+        energy = float(sig.get("energy", 0.0) or 0.0)
+        intensity = float(sig.get("intensity", 0.0) or 0.0)
+        emotion_prosody = float(sig.get("emotion_score", 0.0) or 0.0)
+
+        # Autocontinuidade do trecho
+        starts_clean = 0.0 if MID_THOUGHT_START.search(low) else 1.0
+        ends_clean = 1.0 if text.rstrip().endswith((".", "!", "?", "…", '"', "»")) else 0.4
+
+        hook_strength = min(1.0, 0.6 * hook + 0.25 * question + 0.15 * exclaim)
+
+        # ----- Métricas independentes -----
+        retention = _clamp(0.40 * hook_strength + 0.25 * _length_ok(words) + 0.20 * intensity + 0.15 * energy)
+        virality = _clamp(0.35 * hook_strength + 0.25 * exclaim + 0.25 * max(emotion_word, emotion_prosody) + 0.15 * energy)
+        emotion = _clamp(0.45 * emotion_prosody + 0.25 * emotion_word + 0.20 * exclaim + 0.10 * story)
+        neutrality = 1.0 - max(hook, emotion_word, exclaim)  # trecho expositivo, sem apelo forte
+        substance = min(words / 25.0, 1.0)
+        educational = _clamp(0.45 * edu + 0.35 * substance + 0.20 * neutrality)
+        sharing = _clamp(0.35 * cta + 0.30 * max(edu, hook) + 0.20 * emotion_word + 0.15 * story)
+        clarity = _clamp(0.40 * starts_clean + 0.40 * ends_clean + 0.20 * _length_ok(words))
+
+        # Score global com os mesmos pesos do ranking final (clips.py)
+        score = (
+            retention * 0.30
+            + virality * 0.25
+            + educational * 0.15
+            + sharing * 0.15
+            + emotion * 0.10
+            + clarity * 0.05
+        )
+        score = round(min(score, 0.98), 3)
+
+        types: list[str] = []
+        reasons: list[str] = []
+        if hook_strength >= 0.5:
             types.append("gancho")
             reasons.append("frase de engajamento direto")
-        if "?" in text:
-            score += 0.1
+        if question:
             types.append("gancho")
             reasons.append("pergunta que desperta curiosidade")
-        if "!" in text:
-            score += 0.1
-            reasons.append("ênfase forte")
-        if CTA_MARKERS.search(low):
-            score += 0.1
+        if cta:
             types.append("cta")
             reasons.append("chamada para ação natural")
-        if STORY_MARKERS.search(low):
-            score += 0.1
+        if story:
             types.append("historia")
             reasons.append("início de história")
-        if EMOTION_MARKERS.search(low):
-            score += 0.1
+        if emotion >= 0.55:
             types.append("emocionante")
-            reasons.append("carga emocional no texto")
-
-        sig = signals[i] if i < len(signals) else None
-        if sig:
-            if sig.get("intensity", 0) > 0.75:
-                score += 0.15
-                types.append("energia")
-                reasons.append("pico de intensidade de voz")
-            if sig.get("pace", 0) > 5.0:
-                score += 0.08
-                reasons.append("ritmo acelerado")
-            if sig.get("emotion_score", 0) > 0.6:
-                score += 0.1
-                types.append("emocionante")
-                reasons.append("variação prosódica alta")
-
-        if len(text.split()) >= 8:
-            score += 0.08
+            reasons.append("carga emocional")
+        if intensity > 0.75:
+            types.append("energia")
+            reasons.append("pico de intensidade de voz")
+        if words >= 8 or edu:
             types.append("explicacao")
-            reasons.append("frase com conteúdo substancial")
+            reasons.append("conteúdo com substância")
+        types = list(dict.fromkeys(types))
 
-        h.score = round(min(score, 0.98), 3)
-        h.reason = "; ".join(reasons[:2])
-        h.types = list(dict.fromkeys(types))
-        h.retention = round(min(score + 0.1, 1), 2)
-        h.virality = round(min(score * 1.1, 1), 2)
-        h.educational = 0.55 if "explicacao" in h.types else 0.3
-        h.sharing = round(min(score * 1.05, 1), 2)
-        h.emotion = round(min(score + 0.15 if "emocionante" in h.types else score, 1), 2)
-        h.clarity = 0.7
-        h.duration_pref = 30.0
-        if h.score >= 0.55:
+        h = Highlight(
+            sentence_start=i,
+            sentence_end=i,
+            types=types,
+            score=score,
+            reason="; ".join(reasons[:2]),
+            retention=retention,
+            virality=virality,
+            educational=educational,
+            sharing=sharing,
+            emotion=emotion,
+            clarity=clarity,
+            duration_pref=30.0,
+        )
+        if h.score >= 0.5:
             highlights.append(h)
 
     highlights.sort(key=lambda x: x.score, reverse=True)

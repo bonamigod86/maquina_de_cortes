@@ -14,10 +14,8 @@ function Header({ status }: { status: SystemStatus | null }) {
   return (
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
       <div className="flex items-center gap-2">
-        <span className="flex size-6 items-center justify-center rounded-md bg-primary text-[11px] font-bold text-primary-foreground">
-          CF
-        </span>
-        <span className="text-sm font-semibold">ClipForge Local</span>
+        <img src="/favicon.svg" alt="Máquina de Cortes" className="size-6" />
+        <span className="text-sm font-semibold">Máquina de Cortes</span>
         <span className="text-[11px] text-muted-foreground">— shorts automáticos com legendas</span>
       </div>
       <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -98,12 +96,21 @@ export default function App() {
   }, [selectedId, detail?.status, refreshDetail])
 
   // status do sistema
-  useEffect(() => {
-    const load = () => getSystemStatus().then(setStatus).catch(() => undefined)
-    load()
-    const t = setInterval(load, 10000)
-    return () => clearInterval(t)
+  const refreshStatus = useCallback(() => {
+    getSystemStatus().then(setStatus).catch(() => undefined)
   }, [])
+
+  useEffect(() => {
+    refreshStatus()
+    const t = setInterval(refreshStatus, 10000)
+    return () => clearInterval(t)
+  }, [refreshStatus])
+
+  // refresh imediato após salvar configurações (ex.: troca de modelo de IA)
+  useEffect(() => {
+    window.addEventListener("settings-saved", refreshStatus)
+    return () => window.removeEventListener("settings-saved", refreshStatus)
+  }, [refreshStatus])
 
   // eventos WebSocket do projeto selecionado
   useProjectSocket(selectedId, useCallback((e) => {

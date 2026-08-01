@@ -31,6 +31,7 @@ Tudo roda na sua máquina: sem upload para nuvem, sem custo por vídeo.
   - Dividir e mesclar cortes, editar textos, **regenerar títulos** com IA.
   - Avaliar cortes (👍/👎) para o app aprender suas preferências.
   - Timeline visual com miniaturas.
+  - Linha do tempo do vídeo original: barras **roxas** no topo = energia da fala de cada frase (a altura indica a ênfase da voz); faixa inferior com barras **verdes** = cortes gerados (a barra **roxa** = corte selecionado); faixas **vermelhas** = silêncios; **azul-céu** = cenas; a linha **branca** é a posição atual de reprodução.
 - **Exportação**
   - MP4 H.264 + AAC em 3 qualidades (Alta / Média / Rápida).
   - Exportar um corte ou todos de uma vez.
@@ -71,7 +72,7 @@ Tudo roda na sua máquina: sem upload para nuvem, sem custo por vídeo.
 - **Python 3.10+**
 - **Node.js 18+** (recomendado 20+)
 - **FFmpeg + FFprobe** (com `ffprobe` no PATH). No Windows: `winget install Gyan.FFmpeg`. A aplicação também procura em instalações do winget automaticamente.
-- **Opcional — Ollama** para análise semântica de conteúdo: `winget install Ollama.Ollama` e rode `ollama pull llama3.1` (ou outro modelo).
+- **Opcional — Ollama** para análise semântica de conteúdo: `winget install Ollama.Ollama` e rode `ollama pull qwen2.5:7b` (ou outro modelo).
 - **Opcional — GPU NVIDIA + CUDA** para transcrição mais rápida (detectada automaticamente).
 
 > A primeira transcrição baixa o modelo Whisper escolhido (~1 GB para `medium`) para `backend/data/models/`. A detecção de rosto baixa o modelo YOLOv8-face ONNX (~232 KB) na primeira renderização.
@@ -179,7 +180,7 @@ maquina_de_cortes/
 | `FFmpeg não encontrado` | Instale com `winget install Gyan.FFmpeg` e reinicie o backend |
 | Import do YouTube falha | Verifique conexão; o `yt-dlp` pode precisar de atualização (`pip install -U yt-dlp`) |
 | Transcrição lenta | Troque o modelo para `small`/`base` em Ajustes, ou ative GPU/CUDA |
-| Sem análise semântica | Instale o Ollama e rode `ollama pull llama3.1`; senão, o app usa o modo heurístico |
+| Sem análise semântica | Instale o Ollama e rode `ollama pull qwen2.5:7b`; senão, o app usa o modo heurístico |
 | Primeira renderização baixa um modelo | Aguarde; o download é único (fica em `backend/data/models/`) |
 
 ---

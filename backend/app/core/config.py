@@ -36,7 +36,7 @@ class Settings(BaseModel):
     whisper_compute: str = "auto"
     language: str = "auto"
     ai_provider: str = "ollama"
-    ai_model: str = "llama3.1"
+    ai_model: str = "qwen2.5:7b"
     ai_base_url: str = "http://localhost:11434"
     ai_temperature: float = 0.3
     min_clip_duration: float = 15.0

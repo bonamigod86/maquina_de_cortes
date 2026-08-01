@@ -17,6 +17,31 @@ SYSTEM_PROMPT = (
     "PRIORIZE QUALIDADE sobre quantidade: poucos cortes excelentes valem mais que muitos medianos.\n\n"
     "Categorias que você deve reconhecer: gancho, educativo, engraçado, historia, impactante, "
     "curiosidade, explicacao, cta, emocionante, energia.\n\n"
+    "Avalie CADA destaque em 6 métricas independentes, de 0.0 a 1.0 (1 casa decimal), "
+    "usando ESTAS réguas explícitas — não chute números:\n"
+    "- retention: probabilidade de o espectador assistir até o fim. Alta (>=0.85) exige gancho nos 2s "
+    "iniciais E tensão/valor crescente até o fim; média (0.6-0.8) quando o início é razoável mas há "
+    "trecho arrastado; baixa (<0.5) quando o começo é fraco ou o trecho é longo demais sem payoff.\n"
+    "- virality: potencial de alcance amplo/espontâneo. Alto quando há frase marcante e quotável, "
+    "surpresa, opinião forte, dado chocante ou polêmica; baixo para conteúdo puramente expositivo "
+    "sem nada memorável.\n"
+    "- educational: quanto ensina algo concreto e verificável (técnica, passo, dado, definição, "
+    "exemplo prático). Opinião/motivação genérica => baixo (<0.4).\n"
+    "- sharing: probabilidade de alguém ENVIAR o trecho a outra pessoa de propósito (utilidade "
+    "prática, identificação, \"preciso mostrar isso\"). DIFERENTE de virality: sharing é envio "
+    "direcionado, virality é exposição ampla.\n"
+    "- emotion: intensidade da carga emocional transmitida (surpresa, humor, raiva, emoção pessoal, "
+    "tensão). Trecho neutro/informativo => baixo.\n"
+    "- clarity: o trecho faz sentido SOZINHO, sem o contexto do vídeo? Tem início e fim claros e uma "
+    "única ideia central? Se começa ou termina no meio de uma ideia, deixando gancho não resolvido, "
+    "clarity <= 0.4 OBRIGATORIAMENTE.\n"
+    "REGRAS OBRIGATÓRIAS:\n"
+    "1. Nenhuma nota sem evidência no texto ou nos sinais prosódicos recebidos.\n"
+    "2. Explique em 'reason' (1-2 frases) o principal motivo de o trecho funcionar.\n"
+    "3. Trecho não autocontido (ideia cortada no início ou no fim) => clarity <= 0.4.\n"
+    "4. Se o trecho inteiro é apenas contexto/transição, sem valor standalone, score <= 0.4.\n"
+    "5. A soma retention+virality+educational+sharing+emotion+clarity pode variar livremente; "
+    "cada uma é independente.\n\n"
     "Responda APENAS com JSON válido no formato: "
     '{"summary": "resumo do vídeo em 2 frases", "themes": ["tema1"], "hook_lines": ["frases de abertura fortes"], '
     '"cta_lines": ["frases de chamada para ação"], "highlights": [{"sentence_start": 5, "sentence_end": 9, '
@@ -99,7 +124,15 @@ def analyze_content(
     highlights = []
     for h in raw.get("highlights", []):
         try:
-            highlights.append(Highlight.model_validate(h))
+            item = Highlight.model_validate(h)
+            item.score = round(min(max(item.score, 0.0), 1.0), 3)
+            item.retention = round(min(max(item.retention, 0.0), 1.0), 2)
+            item.virality = round(min(max(item.virality, 0.0), 1.0), 2)
+            item.educational = round(min(max(item.educational, 0.0), 1.0), 2)
+            item.sharing = round(min(max(item.sharing, 0.0), 1.0), 2)
+            item.emotion = round(min(max(item.emotion, 0.0), 1.0), 2)
+            item.clarity = round(min(max(item.clarity, 0.0), 1.0), 2)
+            highlights.append(item)
         except Exception:
             continue
     # valida índices
