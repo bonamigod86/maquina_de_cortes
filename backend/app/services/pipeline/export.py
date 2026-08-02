@@ -8,7 +8,7 @@ from app.models.schemas import Clip
 from app.services.pipeline import reframe as reframe_svc
 from app.services.pipeline import subtitles as sub_svc
 from app.utils import ffmpeg as ff
-from app.utils.helpers import clean_filename
+from app.utils.helpers import clean_filename, new_id, now_iso
 
 
 def _export_quality_crf(quality: str) -> tuple[str, str]:
@@ -28,6 +28,93 @@ def all_words(sentences: list[dict]) -> list[dict]:
     for s in sentences:
         out.extend(s["words"])
     return out
+
+
+def _reframe_vf(
+    width: int,
+    height: int,
+    duration: float,
+    source_start: float,
+    settings: Settings,
+    anchors: list[tuple[float, float, float]] | None,
+    face_segments: list[tuple[float, float]],
+    subtitle_filter: str | None,
+) -> str:
+    """Monta o filtro ffmpeg de reenquadramento 9:16 (blur / crop / híbrido).
+
+    - `anchors`/`face_segments` usam tempo absoluto (source); o filtro usa t
+      relativo ao início do trecho, então desloca por `source_start`.
+    - `subtitle_filter` é o filtro `subtitles=...` já com o caminho escapado
+      (ou None para não queimar legendas).
+    """
+    sw, sh = reframe_svc.scaled_dims(width, height)
+    mode = getattr(settings, "reframe_mode", "auto")
+    landscape = width / height > 1080 / 1920
+
+    rel_segments = [
+        (max(0.0, s - source_start), min(duration, e - source_start))
+        for s, e in face_segments
+    ]
+    rel_segments = [(s, e) for s, e in rel_segments if e - s >= 0.05]
+    face_dur = sum(e - s for s, e in rel_segments)
+
+    if mode == "blur":
+        use_blur, use_hybrid = True, False
+    elif mode == "auto" and landscape and not anchors:
+        use_blur, use_hybrid = True, False
+    elif mode == "auto" and landscape:
+        # rosto presente: decide entre cortar tudo, blur tudo ou híbrido.
+        if face_dur < 0.4:
+            use_blur, use_hybrid = True, False
+        elif face_dur > duration - 0.4:
+            use_blur, use_hybrid = False, False
+        else:
+            use_blur, use_hybrid = False, True
+    else:
+        use_blur, use_hybrid = False, False
+
+    sub_part = f"subtitles={subtitle_filter}," if subtitle_filter else ""
+
+    if use_blur:
+        return (
+            "split=2[a][b];"
+            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
+            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2,"
+            f"{sub_part}"
+            "fps=30,format=yuv420p"
+        )
+    if use_hybrid:
+        # híbrido: take aberto (sem rosto) mostra o quadro inteiro com fundo
+        # desfocado; nos trechos com rosto o zoom 9:16 cobre a tela. Uma única
+        # passada: o overlay com enable alterna entre base (blur) e zoom (rosto).
+        anchors_shifted = [(t - source_start, cx, cy) for t, cx, cy in anchors]
+        x_expr, y_expr = reframe_svc.crop_expressions(anchors_shifted, sw, sh)
+        enable = "+".join(f"between(t,{s:.2f},{e:.2f})" for s, e in rel_segments)
+        return (
+            "split=3[a][b][c];"
+            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
+            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[full];"
+            f"[c]scale={sw}:{sh}:flags=lanczos,crop=1080:1920:'{x_expr}':'{y_expr}'[zoom];"
+            "[bg][full]overlay=(W-w)/2:(H-h)/2:shortest=1[base];"
+            f"[base][zoom]overlay=0:0:enable='{enable}',"
+            f"{sub_part}"
+            "fps=30,format=yuv420p"
+        )
+
+    if anchors:
+        # as âncoras usam tempo absoluto (source); o filtro ffmpeg usa t relativo
+        # ao início do corte (-ss), então desloca para [0, duração].
+        anchors = [(t - source_start, cx, cy) for t, cx, cy in anchors]
+        x_expr, y_expr = reframe_svc.crop_expressions(anchors, sw, sh)
+    else:
+        x_expr, y_expr = reframe_svc.center_crop_exprs(sw, sh)
+    return (
+        f"scale={sw}:{sh}:flags=lanczos,"
+        f"crop=1080:1920:'{x_expr}':'{y_expr}',"
+        f"{sub_part}"
+        "fps=30,format=yuv420p"
+    )
 
 
 def render_clip(
@@ -75,10 +162,8 @@ def render_clip(
 
     ass_path_filter = _filter_path(str(ass_path))
 
-    sw, sh = reframe_svc.scaled_dims(width, height)
-    mode = getattr(settings, "reframe_mode", "auto")
-    landscape = width / height > 1080 / 1920
     duration = clip.source_end - clip.source_start
+    mode = getattr(settings, "reframe_mode", "auto")
 
     anchors = None
     face_segments: list[tuple[float, float]] = []
@@ -91,69 +176,7 @@ def render_clip(
             cancel_event=cancel_event,
         )
 
-    # segmentos de rosto em tempo relativo ao corte (o filtro ffmpeg usa t relativo)
-    rel_segments = [
-        (max(0.0, s - clip.source_start), min(duration, e - clip.source_start))
-        for s, e in face_segments
-    ]
-    rel_segments = [(s, e) for s, e in rel_segments if e - s >= 0.05]
-    face_dur = sum(e - s for s, e in rel_segments)
-
-    if mode == "blur":
-        use_blur, use_hybrid = True, False
-    elif mode == "auto" and landscape and not anchors:
-        use_blur, use_hybrid = True, False
-    elif mode == "auto" and landscape:
-        # rosto presente: decide entre cortar tudo, blur tudo ou híbrido.
-        if face_dur < 0.4:
-            use_blur, use_hybrid = True, False
-        elif face_dur > duration - 0.4:
-            use_blur, use_hybrid = False, False
-        else:
-            use_blur, use_hybrid = False, True
-    else:
-        use_blur, use_hybrid = False, False
-
-    if use_blur:
-        vf = (
-            "split=2[a][b];"
-            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
-            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
-            f"[bg][fg]overlay=(W-w)/2:(H-h)/2,"
-            f"subtitles={ass_path_filter},"
-            "fps=30,format=yuv420p"
-        )
-    elif use_hybrid:
-        # híbrido: take aberto (sem rosto) mostra o quadro inteiro com fundo
-        # desfocado; nos trechos com rosto o zoom 9:16 cobre a tela. Uma única
-        # passada: o overlay com enable alterna entre base (blur) e zoom (rosto).
-        anchors_shifted = [(t - clip.source_start, cx, cy) for t, cx, cy in anchors]
-        x_expr, y_expr = reframe_svc.crop_expressions(anchors_shifted, sw, sh)
-        enable = "+".join(f"between(t,{s:.2f},{e:.2f})" for s, e in rel_segments)
-        vf = (
-            "split=3[a][b][c];"
-            "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=25[bg];"
-            "[b]scale=1080:1920:force_original_aspect_ratio=decrease[full];"
-            f"[c]scale={sw}:{sh}:flags=lanczos,crop=1080:1920:'{x_expr}':'{y_expr}'[zoom];"
-            "[bg][full]overlay=(W-w)/2:(H-h)/2:shortest=1[base];"
-            f"[base][zoom]overlay=0:0:enable='{enable}',"
-            f"subtitles={ass_path_filter},"
-            "fps=30,format=yuv420p"
-        )
-    else:
-        if anchors:
-            # as âncoras usam tempo absoluto (source); o filtro ffmpeg usa t relativo
-            # ao início do corte (-ss), então desloca para [0, duração].
-            anchors = [(t - clip.source_start, cx, cy) for t, cx, cy in anchors]
-            x_expr, y_expr = reframe_svc.crop_expressions(anchors, sw, sh)
-        else:
-            x_expr, y_expr = reframe_svc.center_crop_exprs(sw, sh)
-        vf = (
-            f"scale={sw}:{sh}:flags=lanczos,"
-            f"crop=1080:1920:'{x_expr}':'{y_expr}',"
-            f"subtitles={ass_path_filter},"
-            "fps=30,format=yuv420p"
-        )
+    vf = _reframe_vf(width, height, duration, clip.source_start, settings, anchors, face_segments, ass_path_filter)
 
     preset, crf = _export_quality_crf(settings.export_quality)
     ff.run_ffmpeg(
@@ -192,6 +215,98 @@ def render_clip(
     clip.files.video = str(video_out)
     clip.files.subtitle = str(srt_path)
     clip.files.subtitle_ass = str(ass_path)
+    clip.files.thumbnail = str(thumb_path)
+    clip.files.preview = str(video_out)
+    if on_progress:
+        on_progress(1.0)
+    return clip
+
+
+def render_shorts(
+    project_id: str,
+    video_path: str,
+    settings: Settings,
+    out_dir: str,
+    on_progress=None,
+    cancel_event=None,
+) -> Clip:
+    """Converte o vídeo inteiro para 9:16 (Shorts/Reels) sem legendas nem IA.
+
+    Respeita o modo de reenquadramento das configurações (blur/crop/híbrido).
+    """
+    from app.services.project import ProjectStore
+
+    base = ProjectStore.folder(project_id)
+    clips_dir = Path(out_dir)
+    thumbs_dir = base / "thumbnails"
+    for d in (clips_dir, thumbs_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    info = ff.media_info(video_path)
+    width, height = info["width"], info["height"]
+    duration = info["duration"]
+    if width <= 0 or height <= 0 or duration <= 0:
+        raise RuntimeError("Falha ao ler informações do vídeo")
+
+    clip = Clip(
+        id=new_id("c_"),
+        project_id=project_id,
+        source_start=0.0,
+        source_end=round(duration, 2),
+        duration=round(duration, 2),
+        title="Vídeo completo 9:16",
+        created_at=now_iso(),
+    )
+    name = clean_filename("shorts_9x16")
+    video_out = clips_dir / f"{clip.id}_{name}.mp4"
+    thumb_path = thumbs_dir / f"{clip.id}.jpg"
+
+    mode = getattr(settings, "reframe_mode", "auto")
+    anchors = None
+    face_segments: list[tuple[float, float]] = []
+    if mode != "blur" and settings.face_detection:
+        anchors, face_segments = reframe_svc.sample_faces(
+            video_path,
+            0.0,
+            clip.source_end,
+            on_progress=lambda p: on_progress(p * 0.35) if on_progress else None,
+            cancel_event=cancel_event,
+        )
+
+    vf = _reframe_vf(width, height, duration, 0.0, settings, anchors, face_segments, None)
+
+    preset, crf = _export_quality_crf(settings.export_quality)
+    ff.run_ffmpeg(
+        [
+            "-i", video_path,
+            "-vf", vf,
+            "-c:v", "libx264",
+            "-preset", preset,
+            "-crf", crf,
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "48000",
+            "-movflags", "+faststart",
+            str(video_out),
+        ],
+        on_progress=lambda p: on_progress(0.4 + p * 0.55) if on_progress else None,
+        duration=duration,
+        cancel_event=cancel_event,
+    )
+    try:
+        ff.run_ffmpeg(
+            [
+                "-ss", "0.5",
+                "-i", str(video_out),
+                "-frames:v", "1",
+                "-q:v", "2",
+                str(thumb_path),
+            ]
+        )
+    except Exception:
+        pass
+
+    clip.files.video = str(video_out)
     clip.files.thumbnail = str(thumb_path)
     clip.files.preview = str(video_out)
     if on_progress:

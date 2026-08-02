@@ -6,6 +6,7 @@ import {
   Loader2,
   Play,
   Settings,
+  Smartphone,
   Square,
   Trash2,
   Upload,
@@ -26,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { cn, fmtBytes, fmtTime } from "@/lib/utils"
-import { cancelProject, deleteProject, getAvailableModels, getProject, getSettings, importFromUrl, processProject, updateSettings, uploadVideo } from "@/lib/api"
+import { cancelProject, deleteProject, getAvailableModels, getProject, getSettings, importFromUrl, processProject, updateSettings, uploadVideo, convertShorts } from "@/lib/api"
 import type { Project, Settings as SettingsType } from "@/lib/types"
 
 const STATUS_STYLE: Record<string, string> = {
@@ -247,6 +248,18 @@ export function LeftPanel({ projects, selectedId, onSelect, onRefresh }: {
     }
   }
 
+  const handleConvert = async (id: string) => {
+    setBusyId(id)
+    try {
+      await convertShorts(id)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao iniciar conversão")
+    } finally {
+      setBusyId(null)
+      onRefresh()
+    }
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm("Apagar este projeto e todos os arquivos gerados?")) return
     try {
@@ -303,7 +316,7 @@ export function LeftPanel({ projects, selectedId, onSelect, onRefresh }: {
               {p.error && p.status === "error" && (
                 <p className="mt-1 line-clamp-2 text-[11px] text-red-400">{p.error}</p>
               )}
-              <div className="mt-1.5 hidden gap-1 group-hover:flex" onClick={(e) => e.stopPropagation()}>
+              <div className="mt-1.5 hidden flex-wrap gap-1 group-hover:flex" onClick={(e) => e.stopPropagation()}>
                 {p.status !== "processing" && (
                   <Button
                     size="xs"
@@ -318,6 +331,18 @@ export function LeftPanel({ projects, selectedId, onSelect, onRefresh }: {
                 {p.status === "processing" && (
                   <Button size="xs" variant="outline" onClick={() => void handleCancel(p.id)}>
                     <Square /> Parar
+                  </Button>
+                )}
+                {p.status === "ready" && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    disabled={busyId === p.id}
+                    title="Converter o vídeo inteiro para 9:16 (Shorts/Reels), sem legendas nem IA"
+                    onClick={() => void handleConvert(p.id)}
+                  >
+                    {busyId === p.id ? <Loader2 className="animate-spin" /> : <Smartphone />}
+                    9:16
                   </Button>
                 )}
                 {p.status === "ready" && p.has_clips && (

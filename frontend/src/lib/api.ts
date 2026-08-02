@@ -71,6 +71,10 @@ export function processProject(id: string): Promise<{ ok: boolean; queued: boole
   return req(`/projects/${id}/process`, { method: "POST" })
 }
 
+export function convertShorts(id: string): Promise<{ ok: boolean }> {
+  return req(`/projects/${id}/convert-shorts`, { method: "POST" })
+}
+
 export function cancelProject(id: string): Promise<{ ok: boolean }> {
   return req(`/projects/${id}/cancel`, { method: "POST" })
 }

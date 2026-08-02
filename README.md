@@ -124,6 +124,17 @@ http://localhost:5173 automaticamente. Feche as janelas abertas para parar.
 4. Acompanhe o progresso em tempo real; ao terminar, os cortes aparecem no centro.
 5. Edite, avalie e **exporte** (individual ou todos). Os arquivos ficam em `backend/data/projects/<id>/clips/`.
 
+#### Converter só para 9:16 (sem cortes)
+
+Já tem um vídeo curto pronto e só quer ele no formato vertical (Shorts/Reels)?
+Sem transcrição, sem IA, sem legendas:
+
+1. No card do projeto, clique no botão **9:16** (ícone de celular).
+2. O vídeo inteiro é reenquadrado para **1080×1920** respeitando o modo de
+   reenquadramento das configurações (fundo desfocado / cortar / automático).
+3. Ao terminar, aparece um corte chamado **"Vídeo completo 9:16"** na lista da
+   direita — é só **Baixar**.
+
 #### Ajustar um corte manualmente
 
 O corte gerado às vezes começa ou termina cedo demais. Para pegar alguns

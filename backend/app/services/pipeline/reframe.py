@@ -172,6 +172,9 @@ def sample_faces(
     cap.set(cv2.CAP_PROP_POS_MSEC, t0 * 1000)
 
     sample_interval = max(0.4, min(0.8, duration / 300))
+    # limita o nº de amostras para vídeos longos: cada âncora vira um if() na
+    # expressão do crop e o ffmpeg falha com expressões muito grandes (~>80).
+    sample_interval = max(sample_interval, duration / 60)
     samples: list[tuple[float, bool]] = []
     raw_anchors: list[tuple[float, float, float]] = []
     t = t0
@@ -187,6 +190,12 @@ def sample_faces(
         cap.set(cv2.CAP_PROP_POS_MSEC, t * 1000)
         ok, frame = cap.read()
         if not ok:
+            # leitura falhou (seek em container problemático): registra fallback
+            # para não deixar buracos na timeline nem deslocar as âncoras.
+            if ema is None:
+                ema = (0.5, 0.35)
+            samples.append((t, False))
+            raw_anchors.append((t, round(ema[0], 4), round(max(min(ema[1], 0.55), 0.15), 4)))
             t += sample_interval
             continue
         faces = detect_faces(frame)
@@ -271,19 +280,48 @@ def crop_expressions(
         y = max(0.0, min(cy * scaled_h - out_h / 2, max_y))
         vals.append((t, x, y))
 
-    def build(vals: list[tuple[float, float, float]]) -> str:
-        expr = str(round(vals[-1][1], 2))
+    # colapsa âncoras redundantes (mesma posição em sequência): manter cada
+    # âncora gera um `if(...)` aninhado e o ffmpeg falha em expressões gigantes
+    # ("Failed to configure input pad" / -22). Trechos estáticos viram 2 âncoras.
+    if len(vals) > 2:
+        collapsed: list[tuple[float, float, float]] = [vals[0]]
+        for i in range(1, len(vals) - 1):
+            t, x, y = vals[i]
+            pv, nv = collapsed[-1], vals[i + 1]
+            if (
+                abs(x - pv[1]) < 0.5
+                and abs(y - pv[2]) < 0.5
+                and abs(x - nv[1]) < 0.5
+                and abs(y - nv[2]) < 0.5
+            ):
+                continue
+            collapsed.append((t, x, y))
+        collapsed.append(vals[-1])
+        vals = collapsed
+
+    # cinto de segurança: nunca passa de ~60 âncoras (limite do parser do ffmpeg)
+    if len(vals) > 60:
+        step = max(1, len(vals) // 60)
+        vals = [vals[0]] + [vals[i] for i in range(step, len(vals) - 1, step)] + [vals[-1]]
+
+    def build(vals: list[tuple[float, float, float]], clamp_max: int | float) -> str:
+        # clamp_max pode ser 0 (já coberto); nunca negativo, senão clip() do
+        # ffmpeg vira comportamento indefinido. clamp() evita extrapolação
+        # fora do frame (causa do erro "Failed to configure input pad").
+        c = max(float(clamp_max), 0.0)
+        # último trecho: constante
+        expr = f"clip({vals[-1][1]:.2f},0,{c:.2f})"
         for i in range(len(vals) - 2, -1, -1):
             t0, x0 = vals[i][0], vals[i][1]
             t1, x1 = vals[i + 1][0], vals[i + 1][1]
             span = max(t1 - t0, 1e-4)
             # if(lt(t,t1), x0+(t-t0)*(x1-x0)/span, expr)
-            seg = f"{x0:.2f}+(t-{t0:.2f})*({(x1 - x0) / span:.4f})"
+            seg = f"clip({x0:.2f}+(t-{t0:.2f})*({(x1 - x0) / span:.4f}),0,{c:.2f})"
             expr = f"if(lt(t,{t1:.2f}),{seg},{expr})"
         return expr
 
-    x_expr = build(vals)
-    y_expr = build([(t, y) for t, _, y in vals])
+    x_expr = build(vals, max_x)
+    y_expr = build([(t, y) for t, _, y in vals], max_y)
     return x_expr, y_expr
 
 
