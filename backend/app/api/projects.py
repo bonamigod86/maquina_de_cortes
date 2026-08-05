@@ -36,19 +36,21 @@ class ProcessIn(BaseModel):
 
 class ImportUrlIn(BaseModel):
     url: str
+    quality: str = "1080p"
+    platform: str = "auto"
 
 
-def _download_and_finalize(project_id: str, url: str) -> None:
+def _download_and_finalize(project_id: str, url: str, quality: str = "1080p") -> None:
     """Baixa o vídeo da URL em background e finaliza o projeto."""
-    from app.services.downloader import download_youtube
+    from app.services.downloader import download_url
     from app.utils.ffmpeg import media_info
 
     try:
-        final, title = download_youtube(url, project_id)
+        final, title = download_url(url, project_id, quality=quality)
         info = media_info(final)
         project = ProjectStore.update(
             project_id,
-            name=clean_filename(title) or "YouTube",
+            name=clean_filename(title) or "Vídeo importado",
             source=str(final),
             source_size=Path(final).stat().st_size,
             duration=info["duration"],
@@ -58,7 +60,7 @@ def _download_and_finalize(project_id: str, url: str) -> None:
             status="ready",
         )
         if not info["has_audio"]:
-            ProjectStore.update(project_id, status="error", error="Vídeo do YouTube não possui trilha de áudio")
+            ProjectStore.update(project_id, status="error", error="O vídeo importado não possui trilha de áudio")
             bus.publish(project_id, {"type": "import_error", "message": "Vídeo sem trilha de áudio"})
             return
         bus.publish(project_id, {"type": "import_done", "project": project.model_dump()})
@@ -173,9 +175,9 @@ def import_url(body: ImportUrlIn):
     url = body.url.strip()
     if not url.startswith(("http://", "https://")):
         raise HTTPException(400, "URL inválida")
-    project = ProjectStore.create("YouTube")
+    project = ProjectStore.create("Importado")
     ProjectStore.update(project.id, status="downloading")
-    threading.Thread(target=_download_and_finalize, args=(project.id, url), daemon=True).start()
+    threading.Thread(target=_download_and_finalize, args=(project.id, body.url, body.quality), daemon=True).start()
     return CreateProjectResponse(project=ProjectStore.require(project.id), upload_id=project.id)
 
 

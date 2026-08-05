@@ -1,0 +1,73 @@
+{
+  "id": "tpl_703dec245115",
+  "name": "Podcast Clássico",
+  "category": "podcast",
+  "description": "Corte de podcast: vídeo em tela cheia com lower third com o título do episódio.",
+  "thumbnail": "C:\\Users\\T-GAMER\\Desktop\\github\\Máquina de Cortes\\backend\\data\\templates\\tpl_703dec245115.jpg",
+  "is_public": true,
+  "is_builtin": true,
+  "background": {
+    "type": "none",
+    "value": ""
+  },
+  "elements": [
+    {
+      "id": "s1",
+      "type": "shape",
+      "x": 0.0,
+      "y": 0.8,
+      "w": 1.0,
+      "h": 0.16,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#000000",
+        "opacity": 0.55,
+        "outline": null
+      }
+    },
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 0.06,
+      "y": 0.815,
+      "w": 0.88,
+      "h": 0.06,
+      "content": "EPISÓDIO COMPLETO",
+      "style": {
+        "font_size": 44,
+        "color": "#F5F5F5",
+        "align": "left",
+        "weight": 700
+      }
+    },
+    {
+      "id": "t2",
+      "type": "text",
+      "x": 0.06,
+      "y": 0.855,
+      "w": 0.88,
+      "h": 0.09,
+      "content": "Nome do Episódio",
+      "style": {
+        "font_size": 76,
+        "color": "#FFFFFF",
+        "align": "left",
+        "weight": 900
+      }
+    },
+    {
+      "id": "sa1",
+      "type": "subtitle_area",
+      "x": 0.05,
+      "y": 0.7,
+      "w": 0.9,
+      "h": 0.18,
+      "content": null,
+      "style": {}
+    }
+  ],
+  "subtitle_style_override": null,
+  "created_at": "2026-08-05T18:12:35.244129+00:00",
+  "updated_at": "2026-08-05T18:12:35.244129+00:00"
+}

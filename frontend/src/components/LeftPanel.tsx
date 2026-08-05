@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
+import { BrandKitPanel } from "@/components/BrandKitPanel"
 import { cn, fmtBytes, fmtTime } from "@/lib/utils"
 import { cancelProject, deleteProject, getAvailableModels, getProject, getSettings, importFromUrl, processProject, updateSettings, uploadVideo, convertShorts } from "@/lib/api"
 import type { Project, Settings as SettingsType } from "@/lib/types"
@@ -56,8 +57,10 @@ function ImportDialog({ open, onOpenChange, onImported }: {
   const [progress, setProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
-  const [mode, setMode] = useState<"file" | "youtube">("file")
+  const [mode, setMode] = useState<"file" | "link">("file")
   const [url, setUrl] = useState("")
+  const [platform, setPlatform] = useState("youtube")
+  const [quality, setQuality] = useState("1080p")
   const [dlBusy, setDlBusy] = useState(false)
   const [dlMsg, setDlMsg] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -83,9 +86,9 @@ function ImportDialog({ open, onOpenChange, onImported }: {
       return
     }
     setDlBusy(true)
-    setDlMsg("Conectando ao YouTube…")
+    setDlMsg(platform === "twitch" || platform === "kick" ? `Conectando ao ${platform}…` : "Conectando à plataforma…")
     try {
-      const res = await importFromUrl(url.trim())
+      const res = await importFromUrl(url.trim(), quality, platform)
       setDlMsg("Baixando o vídeo…")
       for (;;) {
         await new Promise((r) => setTimeout(r, 2000))
@@ -122,7 +125,7 @@ function ImportDialog({ open, onOpenChange, onImported }: {
         <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
           {([
             ["file", "Arquivo"],
-            ["youtube", "YouTube"],
+            ["link", "Link"],
           ] as const).map(([k, label]) => (
             <button
               key={k}
@@ -182,12 +185,41 @@ function ImportDialog({ open, onOpenChange, onImported }: {
         ) : (
           <div className="space-y-3">
             <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Plataforma</label>
+              <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
+                {([
+                  ["youtube", "YouTube"],
+                  ["twitch", "Twitch"],
+                  ["kick", "Kick"],
+                  ["outros", "Outros"],
+                ] as const).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setPlatform(k)}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      platform === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Link do vídeo</label>
               <div className="flex items-center gap-2">
                 <Input
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=…"
+                  placeholder={
+                    platform === "twitch"
+                      ? "https://www.twitch.tv/videos/…"
+                      : platform === "kick"
+                        ? "https://kick.com/…/videos/…"
+                        : "https://www.youtube.com/watch?v=…"
+                  }
                   className="h-9 flex-1"
                   disabled={dlBusy}
                   onKeyDown={(e) => { if (e.key === "Enter" && !dlBusy) void doImportUrl() }}
@@ -198,9 +230,25 @@ function ImportDialog({ open, onOpenChange, onImported }: {
                 </Button>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <label className="shrink-0 text-xs text-muted-foreground">Qualidade</label>
+              <select
+                className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+                value={quality}
+                onChange={(e) => setQuality(e.target.value)}
+                disabled={dlBusy}
+              >
+                <option value="360p">360p</option>
+                <option value="720p">720p</option>
+                <option value="1080p">1080p (recomendado)</option>
+                <option value="source">Original (máxima)</option>
+              </select>
+            </div>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Link2 className="size-3.5 shrink-0" />
-              Baixa o melhor vídeo até 1080p. Suporta YouTube e outros sites do yt-dlp.
+              {(platform === "twitch" || platform === "kick")
+                ? "Baixa VODs na qualidade escolhida. Suporta live e clipes."
+                : "Baixa o melhor vídeo até a qualidade escolhida (yt-dlp)."}
             </div>
             {dlBusy && (
               <div className="flex items-center gap-2 text-xs text-sky-400">
@@ -564,6 +612,10 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
                   className="h-8"
                 />
               </div>
+            </div>
+
+            <div className="space-y-5 border-t border-border pt-5">
+              <BrandKitPanel settings={settings} set={set} />
             </div>
 
             <div className="space-y-2">

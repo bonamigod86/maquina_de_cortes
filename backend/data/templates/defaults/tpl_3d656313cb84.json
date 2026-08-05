@@ -1,0 +1,114 @@
+{
+  "id": "tpl_3d656313cb84",
+  "name": "Toguro Style",
+  "category": "viral",
+  "description": "Dois hosts lado a lado em fundo laranja, cada um com balão de fala.",
+  "thumbnail": "C:\\Users\\T-GAMER\\Desktop\\github\\Máquina de Cortes\\backend\\data\\templates\\tpl_3d656313cb84.jpg",
+  "is_public": true,
+  "is_builtin": true,
+  "background": {
+    "type": "gradient",
+    "value": {
+      "colors": [
+        "#F97316",
+        "#FB923C"
+      ],
+      "angle": 90
+    }
+  },
+  "elements": [
+    {
+      "id": "vs1",
+      "type": "video_slot",
+      "x": 0.02,
+      "y": 0.12,
+      "w": 0.47,
+      "h": 0.52,
+      "content": null,
+      "style": {}
+    },
+    {
+      "id": "vs2",
+      "type": "video_slot",
+      "x": 0.51,
+      "y": 0.12,
+      "w": 0.47,
+      "h": 0.52,
+      "content": null,
+      "style": {}
+    },
+    {
+      "id": "s1",
+      "type": "shape",
+      "x": 0.02,
+      "y": 0.68,
+      "w": 0.47,
+      "h": 0.16,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#FFFFFF",
+        "opacity": 1.0,
+        "outline": null
+      }
+    },
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 0.02,
+      "y": 0.7,
+      "w": 0.47,
+      "h": 0.12,
+      "content": "Eu falei isso mesmo",
+      "style": {
+        "font_size": 46,
+        "color": "#111827",
+        "align": "center",
+        "weight": 700
+      }
+    },
+    {
+      "id": "s2",
+      "type": "shape",
+      "x": 0.51,
+      "y": 0.68,
+      "w": 0.47,
+      "h": 0.16,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#FFFFFF",
+        "opacity": 1.0,
+        "outline": null
+      }
+    },
+    {
+      "id": "t2",
+      "type": "text",
+      "x": 0.51,
+      "y": 0.7,
+      "w": 0.47,
+      "h": 0.12,
+      "content": "Aí ele não aceitou",
+      "style": {
+        "font_size": 46,
+        "color": "#111827",
+        "align": "center",
+        "weight": 700
+      }
+    },
+    {
+      "id": "sa1",
+      "type": "subtitle_area",
+      "x": 0.05,
+      "y": 0.88,
+      "w": 0.9,
+      "h": 0.18,
+      "content": null,
+      "style": {}
+    }
+  ],
+  "subtitle_style_override": null,
+  "created_at": "2026-08-05T18:12:35.244129+00:00",
+  "updated_at": "2026-08-05T18:12:35.244129+00:00"
+}

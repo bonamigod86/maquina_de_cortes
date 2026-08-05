@@ -106,7 +106,43 @@ export interface Clip {
   feedback: string | null
   files: ClipFiles
   transcript_excerpt: string
+  template_id: string | null
   created_at: string
+}
+
+export type TemplateElementType =
+  | "text"
+  | "image"
+  | "logo"
+  | "shape"
+  | "video_slot"
+  | "cover"
+  | "subtitle_area"
+
+export interface TemplateElement {
+  id: string
+  type: TemplateElementType
+  x: number
+  y: number
+  w: number
+  h: number
+  content: string | null
+  style: Record<string, unknown>
+}
+
+export interface Template {
+  id: string
+  name: string
+  category: string
+  description: string
+  thumbnail: string | null
+  is_public: boolean
+  is_builtin: boolean
+  background: Record<string, unknown>
+  elements: TemplateElement[]
+  subtitle_style_override: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
 }
 
 export interface PipelineStep {
@@ -180,6 +216,17 @@ export interface Settings {
     animation: string
     words_per_line: number
   }
+  brand_kit: {
+    logo_path: string
+    use_logo: boolean
+    logo_position: "top-left" | "top-right" | "bottom-left" | "bottom-right"
+    primary_color: string
+    secondary_color: string
+    font_family: string
+    use_brand_font: boolean
+  }
+  download_quality: string
+  download_platform: string
   export_quality: string
   use_gpu: boolean
   max_clips: number

@@ -3,6 +3,7 @@ import {
   Captions,
   Clapperboard,
   Download,
+  LayoutTemplate,
   Loader2,
   Scissors,
   Wand2,
@@ -14,9 +15,10 @@ import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
+import { TemplateGallery } from "@/components/TemplateGallery"
 import { downloadUrl, editClip, exportClip, regenerateText, splitClip } from "@/lib/api"
 import { cn, fmtTime } from "@/lib/utils"
-import type { Clip, ProjectDetail } from "@/lib/types"
+import type { Clip, ProjectDetail, Template } from "@/lib/types"
 
 export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
   detail: ProjectDetail
@@ -37,6 +39,7 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
   const [end, setEnd] = useState(clip.source_end)
   const [exporting, setExporting] = useState(false)
   const [regenerating, setRegenerating] = useState<string | null>(null)
+  const [tplOpen, setTplOpen] = useState(false)
 
   useEffect(() => {
     setDraft({
@@ -73,6 +76,27 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
       onChanged()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao salvar")
+    }
+  }
+
+  const applyTemplate = async (t: Template) => {
+    try {
+      await editClip(clip.id, { template_id: t.id })
+      toast.success(`Template "${t.name}" aplicado`)
+      setTplOpen(false)
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao aplicar template")
+    }
+  }
+
+  const clearTemplate = async () => {
+    try {
+      await editClip(clip.id, { template_id: "" })
+      toast.success("Template removido")
+      onChanged()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha ao remover template")
     }
   }
 
@@ -216,6 +240,20 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
         <Button
           size="sm"
           variant="outline"
+          onClick={() => setTplOpen(true)}
+          className={clip.template_id ? "shrink-0 border-emerald-500/50 text-emerald-500" : "shrink-0"}
+          title={clip.template_id ? "Template aplicado — clique para trocar" : "Escolher um template visual"}
+        >
+          <LayoutTemplate /> Template
+        </Button>
+        {clip.template_id && (
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => void clearTemplate()}>
+            remover
+          </Button>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
           className="flex-1"
           disabled={!dirty}
           title="Salva os ajustes de texto e do trecho selecionado"
@@ -275,6 +313,13 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
           </p>
         </>
       )}
+
+      <TemplateGallery
+        open={tplOpen}
+        onOpenChange={setTplOpen}
+        onSelect={(t) => void applyTemplate(t)}
+        currentId={clip.template_id}
+      />
     </div>
   )
 }

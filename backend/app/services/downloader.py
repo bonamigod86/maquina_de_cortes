@@ -1,12 +1,29 @@
-"""Download de vídeos a partir de URLs (YouTube e outros) via yt-dlp."""
+"""Download de vídeos a partir de URLs (YouTube, Twitch, Kick, etc.) via yt-dlp."""
 from __future__ import annotations
 
 from pathlib import Path
 
 from app.services.project import ProjectStore
 
+# qualidade -> seletor de formato do yt-dlp (melhor stream até a resolução)
+FORMAT_MAP = {
+    "360p": "wv*[height<=360]+wa/w[height<=360]/b",
+    "720p": "bv*[height<=720]+ba/b[height<=720]/b",
+    "1080p": "bv*[height<=1080]+ba/b[height<=1080]/b",
+    "source": "bv*+ba/b",
+}
 
-def download_youtube(url: str, project_id: str) -> tuple[str, str]:
+PLATFORM_HINTS = {
+    "youtube": ["youtube.com", "youtu.be"],
+    "twitch": ["twitch.tv"],
+    "kick": ["kick.com"],
+    "twitter": ["x.com", "twitter.com"],
+    "instagram": ["instagram.com"],
+    "facebook": ["facebook.com", "fb.watch"],
+}
+
+
+def download_url(url: str, project_id: str, quality: str = "1080p") -> tuple[str, str]:
     """Baixa o vídeo para original/original.mp4 e retorna (caminho, título)."""
     import yt_dlp
 
@@ -14,9 +31,10 @@ def download_youtube(url: str, project_id: str) -> tuple[str, str]:
 
     dest = ProjectStore.path(project_id, "original")
     dest.mkdir(parents=True, exist_ok=True)
+    fmt = FORMAT_MAP.get(quality, FORMAT_MAP["1080p"])
     opts = {
         "outtmpl": str(dest / "yt.%(ext)s"),
-        "format": "bv*[height<=1080]+ba/b[height<=1080]/b",
+        "format": fmt,
         "merge_output_format": "mp4",
         "no_playlist": True,
         "quiet": True,

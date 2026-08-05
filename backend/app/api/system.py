@@ -1,14 +1,38 @@
 """Rotas de configurações e sistema."""
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from pathlib import Path
 
-from app.core.config import Settings
+from fastapi import APIRouter, File, HTTPException, UploadFile
+
+from app.core.config import DATA_DIR, Settings
 from app.services.ai import get_provider, provider_status
 from app.services.learning.store import FeedbackStore
 from app.services.queue.manager import queue
 
 router = APIRouter(prefix="/api", tags=["system"])
+
+
+@router.post("/brand/logo")
+def upload_logo(file: UploadFile = File(...)):
+    """Salva o logo da marca e atualiza o brand_kit, retornando o caminho absoluto."""
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(400, "Envie uma imagem (PNG/JPEG)")
+    brand_dir = DATA_DIR / "brand"
+    brand_dir.mkdir(parents=True, exist_ok=True)
+    ext = ".png"
+    name = Path(file.filename or "").suffix.lower()
+    if name in (".jpg", ".jpeg", ".webp", ".gif"):
+        ext = name
+    dest = brand_dir / f"logo{ext}"
+    dest.write_bytes(file.file.read())
+    s = Settings.load()
+    if "brand_kit" not in s.brand_kit or not isinstance(s.brand_kit, dict):
+        s.brand_kit = dict(s.brand_kit)
+    s.brand_kit["logo_path"] = str(dest)
+    s.brand_kit["use_logo"] = True
+    s.save()
+    return {"path": str(dest), "url": f"/media/brand/logo{ext}"}
 
 
 @router.get("/settings")

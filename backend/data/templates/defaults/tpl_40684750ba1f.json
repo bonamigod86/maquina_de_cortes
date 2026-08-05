@@ -1,0 +1,100 @@
+{
+  "id": "tpl_40684750ba1f",
+  "name": "Breaking News",
+  "category": "news",
+  "description": "Faixa vermelha 'URGENTE', vídeo centralizado e moldura dourada.",
+  "thumbnail": "C:\\Users\\T-GAMER\\Desktop\\github\\Máquina de Cortes\\backend\\data\\templates\\tpl_40684750ba1f.jpg",
+  "is_public": true,
+  "is_builtin": true,
+  "background": {
+    "type": "color",
+    "value": "#111827"
+  },
+  "elements": [
+    {
+      "id": "vs1",
+      "type": "video_slot",
+      "x": 0.05,
+      "y": 0.16,
+      "w": 0.9,
+      "h": 0.55,
+      "content": null,
+      "style": {}
+    },
+    {
+      "id": "s1",
+      "type": "shape",
+      "x": 0.0,
+      "y": 0.0,
+      "w": 1.0,
+      "h": 0.1,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#DC2626",
+        "opacity": 1.0,
+        "outline": null
+      }
+    },
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 0.0,
+      "y": 0.015,
+      "w": 1.0,
+      "h": 0.07,
+      "content": "URGENTE",
+      "style": {
+        "font_size": 72,
+        "color": "#FFFFFF",
+        "align": "center",
+        "weight": 900
+      }
+    },
+    {
+      "id": "t2",
+      "type": "text",
+      "x": 0.06,
+      "y": 0.76,
+      "w": 0.88,
+      "h": 0.14,
+      "content": "Título da notícia em destaque",
+      "style": {
+        "font_size": 72,
+        "color": "#FFFFFF",
+        "align": "left",
+        "weight": 800,
+        "outline_color": "#000000",
+        "outline_width": 4
+      }
+    },
+    {
+      "id": "s2",
+      "type": "shape",
+      "x": 0.03,
+      "y": 0.14,
+      "w": 0.94,
+      "h": 0.59,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#FBBF24",
+        "opacity": 0.0,
+        "outline": 6
+      }
+    },
+    {
+      "id": "sa1",
+      "type": "subtitle_area",
+      "x": 0.05,
+      "y": 0.78,
+      "w": 0.9,
+      "h": 0.18,
+      "content": null,
+      "style": {}
+    }
+  ],
+  "subtitle_style_override": null,
+  "created_at": "2026-08-05T18:12:35.244129+00:00",
+  "updated_at": "2026-08-05T18:12:35.244129+00:00"
+}

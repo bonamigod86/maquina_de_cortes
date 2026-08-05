@@ -1,0 +1,134 @@
+{
+  "id": "tpl_b9a54d24b559",
+  "name": "Quiz/Enigma",
+  "category": "viral",
+  "description": "Fundo escuro, pergunta grande no centro e opções como botões.",
+  "thumbnail": "C:\\Users\\T-GAMER\\Desktop\\github\\Máquina de Cortes\\backend\\data\\templates\\tpl_b9a54d24b559.jpg",
+  "is_public": true,
+  "is_builtin": true,
+  "background": {
+    "type": "gradient",
+    "value": {
+      "colors": [
+        "#0F172A",
+        "#1E293B"
+      ],
+      "angle": 0
+    }
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 0.05,
+      "y": 0.08,
+      "w": 0.9,
+      "h": 0.16,
+      "content": "QUIZ DE HOJE",
+      "style": {
+        "font_size": 56,
+        "color": "#FACC15",
+        "align": "center",
+        "weight": 900
+      }
+    },
+    {
+      "id": "vs1",
+      "type": "video_slot",
+      "x": 0.05,
+      "y": 0.24,
+      "w": 0.9,
+      "h": 0.34,
+      "content": null,
+      "style": {}
+    },
+    {
+      "id": "t2",
+      "type": "text",
+      "x": 0.06,
+      "y": 0.62,
+      "w": 0.88,
+      "h": 0.14,
+      "content": "Qual é a resposta certa?",
+      "style": {
+        "font_size": 72,
+        "color": "#FFFFFF",
+        "align": "center",
+        "weight": 800
+      }
+    },
+    {
+      "id": "sa",
+      "type": "shape",
+      "x": 0.1,
+      "y": 0.8,
+      "w": 0.36,
+      "h": 0.09,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#22C55E",
+        "opacity": 1.0,
+        "outline": null
+      }
+    },
+    {
+      "id": "t3",
+      "type": "text",
+      "x": 0.1,
+      "y": 0.815,
+      "w": 0.36,
+      "h": 0.06,
+      "content": "OPÇÃO A",
+      "style": {
+        "font_size": 44,
+        "color": "#FFFFFF",
+        "align": "center",
+        "weight": 700
+      }
+    },
+    {
+      "id": "sb",
+      "type": "shape",
+      "x": 0.54,
+      "y": 0.8,
+      "w": 0.36,
+      "h": 0.09,
+      "content": null,
+      "style": {
+        "shape": "rect",
+        "color": "#3B82F6",
+        "opacity": 1.0,
+        "outline": null
+      }
+    },
+    {
+      "id": "t4",
+      "type": "text",
+      "x": 0.54,
+      "y": 0.815,
+      "w": 0.36,
+      "h": 0.06,
+      "content": "OPÇÃO B",
+      "style": {
+        "font_size": 44,
+        "color": "#FFFFFF",
+        "align": "center",
+        "weight": 700
+      }
+    },
+    {
+      "id": "sa1",
+      "type": "subtitle_area",
+      "x": 0.05,
+      "y": 0.9,
+      "w": 0.9,
+      "h": 0.18,
+      "content": null,
+      "style": {}
+    }
+  ],
+  "subtitle_style_override": null,
+  "created_at": "2026-08-05T18:12:35.244129+00:00",
+  "updated_at": "2026-08-05T18:12:35.244129+00:00"
+}

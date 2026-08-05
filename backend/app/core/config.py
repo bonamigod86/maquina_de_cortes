@@ -15,6 +15,16 @@ SETTINGS_FILE = DATA_DIR / "settings.json"
 FEEDBACK_DB = DATA_DIR / "feedback.db"
 MODELS_CACHE = DATA_DIR / "models"
 
+DEFAULT_BRAND_KIT = {
+    "logo_path": "",
+    "use_logo": False,
+    "logo_position": "top-right",
+    "primary_color": "#7C3AED",
+    "secondary_color": "#22C55E",
+    "font_family": "",
+    "use_brand_font": False,
+}
+
 DEFAULT_SUBTITLE_STYLE = {
     "style": "tiktok",
     "font": "Arial Black",
@@ -43,6 +53,9 @@ class Settings(BaseModel):
     max_clip_duration: float = 60.0
     clip_durations: list[float] = Field(default_factory=lambda: [15.0, 30.0, 45.0, 60.0])
     subtitle_style: dict[str, Any] = Field(default_factory=lambda: dict(DEFAULT_SUBTITLE_STYLE))
+    brand_kit: dict[str, Any] = Field(default_factory=lambda: dict(DEFAULT_BRAND_KIT))
+    download_quality: str = "1080p"
+    download_platform: str = "auto"
     export_quality: str = "high"
     use_gpu: bool = True
     max_clips: int = 8

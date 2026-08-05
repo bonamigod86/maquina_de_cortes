@@ -11,7 +11,13 @@ frontend/node_modules/
 frontend/dist/
 
 # Dados locais (modelos, projetos, settings, feedback)
-backend/data/
+backend/data/*
+!backend/data/templates/
+!backend/data/templates/defaults/
+!backend/data/templates/*.jpg
+backend/data/templates/previews/
+!backend/data/fonts/
+!backend/data/fonts/fonts.conf
 
 # Config / sensível
 .env

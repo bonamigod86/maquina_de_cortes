@@ -6,6 +6,7 @@ import type {
   SearchResult,
   Settings,
   SystemStatus,
+  Template,
 } from "./types"
 
 const BASE = "/api"
@@ -59,11 +60,15 @@ export function uploadVideo(file: File, onProgress?: (pct: number) => void): Pro
   })
 }
 
-export function importFromUrl(url: string): Promise<{ project: Project; upload_id: string }> {
+export function importFromUrl(
+  url: string,
+  quality = "1080p",
+  platform = "auto",
+): Promise<{ project: Project; upload_id: string }> {
   return req("/projects/import-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, quality, platform }),
   })
 }
 
@@ -110,6 +115,7 @@ export function editClip(
     source_start: number
     source_end: number
     feedback: string | null
+    template_id: string | null
   }>,
 ): Promise<Clip> {
   return req(`/clips/${clipId}`, {
@@ -155,6 +161,48 @@ export function exportClip(clipId: string): Promise<{ clip_id: string; ok: boole
   return req(`/clips/${clipId}/export`, { method: "POST" })
 }
 
+// ---- templates ----
+
+export function listTemplates(mine = true, public_ = true): Promise<Template[]> {
+  return req(`/templates?mine=${mine}&public=${public_}`)
+}
+
+export function getTemplate(id: string): Promise<Template> {
+  return req(`/templates/${id}`)
+}
+
+export function createTemplate(data: Record<string, unknown>): Promise<Template> {
+  return req("/templates", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateTemplate(id: string, data: Record<string, unknown>): Promise<Template> {
+  return req(`/templates/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+}
+
+export function deleteTemplate(id: string): Promise<{ ok: boolean }> {
+  return req(`/templates/${id}`, { method: "DELETE" })
+}
+
+export function cloneTemplate(id: string): Promise<Template> {
+  return req(`/templates/${id}/clone`, { method: "POST" })
+}
+
+export function previewTemplate(data: Record<string, unknown>): Promise<{ thumbnail: string }> {
+  return req("/templates/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  })
+}
+
 export function exportAll(projectId: string, clipIds?: string[]): Promise<{ clip_id: string; ok: boolean; path: string; error: string }[]> {
   return req(`/clips/${projectId}/export-all`, {
     method: "POST",
@@ -185,14 +233,36 @@ export function getAvailableModels(): Promise<{ models: string[] }> {
   return req("/system/models")
 }
 
+export function uploadLogo(file: File): Promise<{ path: string; url: string }> {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData()
+    fd.append("file", file)
+    fetch(`${BASE}/brand/logo`, { method: "POST", body: fd })
+      .then(async (res) => {
+        if (!res.ok) {
+          let msg = `Erro ${res.status}`
+          try {
+            const b = await res.json()
+            if (b?.detail) msg = typeof b.detail === "string" ? b.detail : JSON.stringify(b.detail)
+          } catch {
+            /* ignore */
+          }
+          throw new Error(msg)
+        }
+        resolve(await res.json())
+      })
+      .catch(reject)
+  })
+}
+
 // ---- mídia ----
 
 export function mediaUrl(absPath: string | undefined | null): string {
   if (!absPath) return ""
   const p = absPath.replace(/\\/g, "/")
-  const marker = "/data/projects/"
+  const marker = "/data/"
   const idx = p.indexOf(marker)
-  if (idx >= 0) return `/media/projects/${p.slice(idx + marker.length)}`
+  if (idx >= 0) return `/media/${p.slice(idx + marker.length)}`
   const marker2 = "/projects/"
   const idx2 = p.indexOf(marker2)
   if (idx2 >= 0) return `/media${p.slice(idx2)}`

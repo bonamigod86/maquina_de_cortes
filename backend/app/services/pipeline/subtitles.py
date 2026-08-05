@@ -120,11 +120,17 @@ def build_ass(
     clip_end: float,
     style_cfg: dict,
     out_path: str,
+    brand_kit: dict | None = None,
 ) -> str:
     """Gera arquivo .ass com legendas da janela do corte (tempos relativos)."""
     style_key = style_cfg.get("style", "tiktok")
     base = STYLE_PRESETS.get(style_key, STYLE_PRESETS["tiktok"])
     merged = {**base, **{k: v for k, v in style_cfg.items() if v not in (None, "")}}
+
+    # Brand kit: se o usuário ativou "usar fonte da marca", sobrescreve a fonte
+    bk = brand_kit or {}
+    if bk.get("use_brand_font") and bk.get("font_family"):
+        merged["font"] = bk["font_family"]
 
     font = merged["font"]
     size = int(merged["font_size"])

@@ -114,6 +114,7 @@ class Clip(BaseModel):
     feedback: str | None = None
     files: ClipFiles = Field(default_factory=ClipFiles)
     transcript_excerpt: str = ""
+    template_id: str | None = None
     created_at: str = ""
 
 
@@ -188,6 +189,7 @@ class ClipEditIn(BaseModel):
     source_end: float | None = None
     duration: float | None = None
     feedback: str | None = None
+    template_id: str | None = None
 
 
 class ClipSplitIn(BaseModel):

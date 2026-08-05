@@ -1,0 +1,43 @@
+{
+  "id": "tpl_f5159b91b56d",
+  "name": "Minimalista Clean",
+  "category": "minimal",
+  "description": "Sem bordas nem fundo: título fino e espaçoso no rodapé.",
+  "thumbnail": "C:\\Users\\T-GAMER\\Desktop\\github\\Máquina de Cortes\\backend\\data\\templates\\tpl_f5159b91b56d.jpg",
+  "is_public": true,
+  "is_builtin": true,
+  "background": {
+    "type": "none",
+    "value": ""
+  },
+  "elements": [
+    {
+      "id": "t1",
+      "type": "text",
+      "x": 0.08,
+      "y": 0.8,
+      "w": 0.84,
+      "h": 0.1,
+      "content": "Título em fonte leve",
+      "style": {
+        "font_size": 60,
+        "color": "#E5E7EB",
+        "align": "left",
+        "weight": 300
+      }
+    },
+    {
+      "id": "sa1",
+      "type": "subtitle_area",
+      "x": 0.05,
+      "y": 0.72,
+      "w": 0.9,
+      "h": 0.18,
+      "content": null,
+      "style": {}
+    }
+  ],
+  "subtitle_style_override": null,
+  "created_at": "2026-08-05T18:12:35.244129+00:00",
+  "updated_at": "2026-08-05T18:12:35.244129+00:00"
+}

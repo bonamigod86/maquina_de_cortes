@@ -117,6 +117,38 @@ def _reframe_vf(
     )
 
 
+_LOGO_POSITIONS = {
+    "top-left": ("40", "40"),
+    "top-right": ("W-w-40", "40"),
+    "bottom-left": ("40", "H-h-40"),
+    "bottom-right": ("W-w-40", "H-h-40"),
+}
+
+
+def _brand_overlay_vf(vf: str, brand_kit: dict | None) -> str:
+    """Sobrepõe o logo da marca ao final do filtergraph, se configurado.
+
+    As cadeias de `_reframe_vf` terminam em `fps=30,format=yuv420p`; troca esse
+    trecho por uma ramificação `movie`+`overlay` antes do encodificador.
+    """
+    bk = brand_kit or {}
+    logo = bk.get("logo_path") or ""
+    if not logo or not bk.get("use_logo") or not Path(logo).exists():
+        return vf
+    suffix = "fps=30,format=yuv420p"
+    if suffix not in vf:
+        return vf
+    path = logo.replace("\\", "/").replace(":", "\\\\:")
+    x, y = _LOGO_POSITIONS.get(bk.get("logo_position", "top-right"), _LOGO_POSITIONS["top-right"])
+    main = vf.replace(suffix, "").rstrip(",")
+    return (
+        f"{main}[main];"
+        f"movie={path},scale='min(iw,180)':-2[logo];"
+        f"[main][logo]overlay={x}:{y}:format=auto[out];"
+        f"[out]{suffix}"
+    )
+
+
 def render_clip(
     project_id: str,
     clip: Clip,
@@ -151,7 +183,14 @@ def render_clip(
         raise RuntimeError("Falha ao ler resolução do vídeo")
 
     words = _words_in_window(all_words(sentences), clip.source_start, clip.source_end)
-    sub_svc.build_ass(words, clip.source_start, clip.source_end, style_cfg, str(ass_path))
+    sub_svc.build_ass(
+        words,
+        clip.source_start,
+        clip.source_end,
+        style_cfg,
+        str(ass_path),
+        getattr(settings, "brand_kit", None),
+    )
     sub_svc.build_srt(words, clip.source_start, clip.source_end, str(srt_path))
 
     # filtro subtitles do ffmpeg (Windows): caminho sem aspas, ":" escapado como
@@ -177,6 +216,22 @@ def render_clip(
         )
 
     vf = _reframe_vf(width, height, duration, clip.source_start, settings, anchors, face_segments, ass_path_filter)
+    vf = _brand_overlay_vf(vf, getattr(settings, "brand_kit", None))
+
+    # aplica template de layout, se o corte tiver um associado
+    template_id = getattr(clip, "template_id", None)
+    if template_id:
+        from app.services import template_store
+        from app.services.pipeline import template_render as tpl_render
+
+        tpl = template_store.get_template(template_id)
+        if tpl is not None:
+            vf = tpl_render.apply_template(
+                vf,
+                tpl.model_dump(),
+                duration,
+                subs_dir,
+            )
 
     preset, crf = _export_quality_crf(settings.export_quality)
     ff.run_ffmpeg(
@@ -274,6 +329,7 @@ def render_shorts(
         )
 
     vf = _reframe_vf(width, height, duration, 0.0, settings, anchors, face_segments, None)
+    vf = _brand_overlay_vf(vf, getattr(settings, "brand_kit", None))
 
     preset, crf = _export_quality_crf(settings.export_quality)
     ff.run_ffmpeg(

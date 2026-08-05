@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import clips, projects, system, ws
+from app.api import clips, projects, system, templates, ws
 from app.core.cuda import register_cuda_paths
 from app.core.config import DATA_DIR, Settings, ensure_dirs
 from app.services.pipeline.orchestrator import PipelineRunner
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(projects.router)
 app.include_router(clips.router)
 app.include_router(system.router)
+app.include_router(templates.router)
 app.include_router(ws.router)
 
 # serve arquivos de mídia gerados (videos, thumbs, legendas)
