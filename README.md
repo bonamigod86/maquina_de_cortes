@@ -10,7 +10,7 @@ Tudo roda na sua máquina: sem upload para nuvem, sem custo por vídeo.
 
 - **Importação de vídeos**
   - Upload de arquivo local (MP4, MOV, MKV, AVI, WebM, M4V, FLV, WMV, TS) via arrastar-e-soltar.
-  - Importação por **link do YouTube** (ou outros sites suportados pelo `yt-dlp`), com download automático do título.
+  - Importação por **link** (YouTube, Twitch, Kick e outros suportados pelo `yt-dlp`), com escolha de **qualidade** (360p/720p/1080p/Original) e plataforma.
 - **Pipeline automático de cortes**
   1. Extração de áudio (WAV 16 kHz).
   2. Transcrição com **Whisper** (`faster-whisper`), com modelos de `tiny` a `large-v3`.
@@ -29,9 +29,17 @@ Tudo roda na sua máquina: sem upload para nuvem, sem custo por vídeo.
   - Exportação de legendas **SRT / VTT / TXT**.
 - **Editor de cortes**
   - Dividir e mesclar cortes, editar textos, **regenerar títulos** com IA.
+  - Aplicar um **template visual** ao corte (botão **Template** → escolha na galeria).
   - Avaliar cortes (👍/👎) para o app aprender suas preferências.
   - Timeline visual com miniaturas.
   - Linha do tempo do vídeo original: barras **roxas** no topo = energia da fala de cada frase (a altura indica a ênfase da voz); faixa inferior com barras **verdes** = cortes gerados (a barra **roxa** = corte selecionado); faixas **vermelhas** = silêncios; **azul-céu** = cenas; a linha **branca** é a posição atual de reprodução.
+- **Identidade visual (Brand Kit)**
+  - Upload da **logo** da marca, ativar "Usar logo no vídeo" e escolher a posição (canto superior/inferior).
+  - Cores **primária** e **secundária**, e opção de usar a **fonte da marca** nas legendas.
+- **Templates de corte**
+  - **Galeria** com filtros (Todos / Galeria / Meus) e busca; aplica um template ao corte com 1 clique (botão **Template** no editor).
+  - **8 templates built-in**: Podcast Clássico, Feed da Fofoca, Breaking News, Gaming Highlights, Minimalista Clean, Toguro Style, Interview e Quiz/Enigma.
+  - **Editor visual WYSIWYG**: canvas 9:16 com arrastar/redimensionar (sem dependências), elementos de texto, forma, vídeo, imagem, logo, capa e área de legenda; fundo (cor/gradiente/imagem); preview de frame renderizado via FFmpeg; salvar rascunho ou publicar.
 - **Exportação**
   - MP4 H.264 + AAC em 3 qualidades (Alta / Média / Rápida).
   - Exportar um corte ou todos de uma vez.
@@ -63,7 +71,7 @@ Tudo roda na sua máquina: sem upload para nuvem, sem custo por vídeo.
 | Componentes | @base-ui/react |
 | Extras | lucide-react, sonner (toasts), next-themes |
 
-**Armazenamento local** — tudo em `backend/data/` (projetos, vídeos, modelos baixados, `settings.json`, banco de feedbacks).
+**Armazenamento local** — projetos, vídeos, modelos baixados, `settings.json` e banco de feedbacks ficam em `backend/data/` (gerado em runtime). Os **templates built-in** (`backend/data/templates/`) são versionados.
 
 ---
 
@@ -166,6 +174,7 @@ Disponíveis em **Ajustes** (ícone de engrenagem) e persistidas em `backend/dat
 | IA de conteúdo | Provedor (`ollama` / OpenAI-compat / `none`), modelo, URL base |
 | Cortes | Durações (15/30/45/60 s), máximo de cortes, qualidade de exportação, reenquadramento (`automático`, `sempre cortar`, `fundo desfocado`) |
 | Legendas | Palavras por linha, tamanho, fonte |
+| Marca (Brand Kit) | Logo (upload), usar logo no vídeo, posição, cores primária/secundária, fonte da marca (também nas legendas) |
 | Sistema | Usar GPU (CUDA), detecção de rosto, gerar legendas `.srt` |
 
 ---
@@ -176,22 +185,25 @@ Disponíveis em **Ajustes** (ícone de engrenagem) e persistidas em `backend/dat
 maquina_de_cortes/
 ├── backend/
 │   ├── app/
-│   │   ├── api/            # Rotas FastAPI (projetos, cortes, sistema, WebSocket)
+│   │   ├── api/            # Rotas FastAPI (projetos, cortes, sistema, templates, WebSocket)
 │   │   ├── core/           # Configurações, CUDA, eventos
-│   │   ├── models/         # Schemas (Project, Clip, …)
+│   │   ├── models/         # Schemas (Project, Clip, Template, …)
 │   │   ├── services/
-│   │   │   ├── pipeline/   # Áudio, transcrição, análise, cortes, legendas, reframe, export
+│   │   │   ├── pipeline/   # Áudio, transcrição, análise, cortes, legendas, reframe, export, template_render
 │   │   │   ├── ai/         # Provedores de IA (Ollama, OpenAI-compat, heurística)
 │   │   │   ├── learning/   # Feedback e perfil do usuário
 │   │   │   ├── downloader.py
+│   │   │   ├── template_store.py  # CRUD + templates built-in
 │   │   │   └── project.py  # Persistência dos projetos
 │   │   └── utils/          # FFmpeg, helpers
-│   ├── data/               # (gerado em runtime: projetos, modelos, settings) — não versionado
+│   ├── data/
+│   │   ├── templates/      # Templates (built-ins versionados + seus criados por você)
+│   │   └── ...             # (gerado em runtime: projetos, modelos, settings) — não versionado
 │   ├── requirements.txt
 │   └── run.py
 ├── frontend/
 │   ├── src/
-│   │   ├── components/     # Painéis, editor, timeline, dialogs
+│   │   ├── components/     # Painéis, editor, timeline, dialogs, TemplateGallery, TemplateEditor
 │   │   └── lib/            # API client, tipos, WebSocket
 │   ├── package.json
 │   └── vite.config.ts
@@ -218,25 +230,6 @@ maquina_de_cortes/
 | Transcrição lenta | Troque o modelo para `small`/`base` em Ajustes, ou ative GPU/CUDA |
 | Sem análise semântica | Instale o Ollama e rode `ollama pull qwen2.5:7b`; senão, o app usa o modo heurístico |
 | Primeira renderização baixa um modelo | Aguarde; o download é único (fica em `backend/data/models/`) |
-
----
-
-## ☕ Pague um café se te ajudou 🫶
-
-Se o **Máquina de Cortes** te salvou uma tarde de edição (ou algumas noites
-tentando encaixar um take no 9:16 😅), considere pagar um cafezinho pra quem
-mantém essa ferramenta de pé. **Qualquer valor conta** — de R$ 2 a R$ 20, o
-que importa é o gesto! 🙏
-
-> ### 🚀 Chave Pix: `11998636247`
-
-**Como doar em 30 segundos:**
-1. Abra o app do seu banco 📱
-2. Escolha **Pix** → **Chave Pix** (ou "Chave aleatória")
-3. Cole `11998636247` e informe o valor 💵
-4. Confirme e pronto — o meu café tá garantido! ☕✨
-
-Muito obrigado por usar e apoiar o projeto! 🚀❤️
 
 ---
 
