@@ -14,7 +14,7 @@ function Header({ status }: { status: SystemStatus | null }) {
   return (
     <header className="flex h-11 shrink-0 items-center justify-between border-b border-border px-4">
       <div className="flex items-center gap-2">
-        <img src="/favicon.svg" alt="Máquina de Cortes" className="size-6" />
+        <img src="/logo.png" alt="Máquina de Cortes" className="size-7 rounded" />
         <span className="text-sm font-semibold">Máquina de Cortes</span>
         <span className="text-[11px] text-muted-foreground">— shorts automáticos com legendas</span>
       </div>

@@ -107,6 +107,7 @@ export interface Clip {
   files: ClipFiles
   transcript_excerpt: string
   template_id: string | null
+  subtitle_style: Record<string, unknown> | null
   created_at: string
 }
 

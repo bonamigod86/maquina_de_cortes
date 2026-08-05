@@ -453,7 +453,7 @@ export function TemplateEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex h-[92vh] w-[98vw] max-w-[1200px] flex-col gap-0 p-0">
+      <DialogContent className="flex h-[92vh] w-[98vw] max-w-[1200px] flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-border px-4 py-3">
           <div className="flex items-center gap-3">
             <DialogTitle className="flex items-center gap-2 text-base">
@@ -474,7 +474,7 @@ export function TemplateEditor({
           </div>
         </DialogHeader>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[48px_minmax(0,1fr)_300px]">
+        <div className="grid min-h-0 flex-1 grid-cols-[48px_minmax(0,1fr)_300px] overflow-hidden">
           <div className="flex flex-col items-center gap-1 overflow-y-auto border-r border-border bg-muted/20 p-2">
             {(["text", "shape", "video_slot", "image", "logo", "cover", "subtitle_area"] as const).map((type) => (
               <button
@@ -542,7 +542,7 @@ export function TemplateEditor({
             </div>
           </div>
 
-          <ScrollArea className="border-l border-border">
+          <ScrollArea className="h-full min-h-0 border-l border-border">
             <div className="flex flex-col gap-4 p-3">
               <div className="grid grid-cols-2 gap-2">
                 <div className="col-span-2">

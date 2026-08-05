@@ -130,14 +130,11 @@ def build_clips(
         )
 
     # dedupe: escolhe os melhores sem sobreposição significativa
-    drafts.sort(key=lambda c: c.total_score, reverse=True)
-    picked: list[Clip] = []
-    for c in drafts:
-        if len(picked) >= settings.max_clips:
-            break
+    drafted: list[Clip] = []
+    for c in sorted(drafts, key=lambda c: c.total_score, reverse=True):
         overlaps = any(
-            c.source_start < p.source_end - 1.5 and c.source_end > p.source_start + 1.5 for p in picked
+            c.source_start < p.source_end - 1.5 and c.source_end > p.source_start + 1.5 for p in drafted
         )
         if not overlaps:
-            picked.append(c)
-    return picked
+            drafted.append(c)
+    return drafted

@@ -4,6 +4,7 @@ import {
   Download,
   Link2,
   Loader2,
+  MonitorPlay,
   Play,
   Settings,
   Smartphone,
@@ -11,7 +12,6 @@ import {
   Trash2,
   Upload,
   X,
-  MonitorPlay,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -47,6 +47,30 @@ const STATUS_LABEL: Record<string, string> = {
   downloading: "Baixando",
   error: "Erro",
   created: "Novo",
+}
+
+function YoutubeIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M23.5 6.19a3.02 3.02 0 0 0-2.12-2.14C19.5 3.55 12 3.55 12 3.55s-7.5 0-9.38.5A3.02 3.02 0 0 0 .5 6.19C0 8.07 0 12 0 12s0 3.93.5 5.81a3.02 3.02 0 0 0 2.12 2.14c1.88.5 9.38.5 9.38.5s7.5 0 9.38-.5a3.02 3.02 0 0 0 2.12-2.14C24 15.93 24 12 24 12s0-3.93-.5-5.81zM9.55 15.57V8.43L15.82 12l-6.27 3.57z" />
+    </svg>
+  )
+}
+
+function TwitchIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+    </svg>
+  )
+}
+
+function KickIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M2 2h5.8l3.4 3.4L12.6 2h3.8v4.4l-3.2 3.2 3.2 3.2v4.4h-3.8l-1.4-1.4V22H7.8v-6.8H2zm10 9.4v-1.4h-3v1.4zm-3-4v-1.4h3v1.4z" />
+    </svg>
+  )
 }
 
 function ImportDialog({ open, onOpenChange, onImported }: {
@@ -119,7 +143,7 @@ function ImportDialog({ open, onOpenChange, onImported }: {
         <DialogHeader>
           <DialogTitle>Importar vídeo</DialogTitle>
           <DialogDescription>
-            Arquivo local ou link do MonitorPlay, processado 100% localmente.
+            Arquivo local ou link (YouTube, Twitch, Kick…), processado 100% localmente.
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
@@ -187,21 +211,24 @@ function ImportDialog({ open, onOpenChange, onImported }: {
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Plataforma</label>
               <div className="flex gap-1 rounded-lg border border-border bg-muted/40 p-1">
-                {([
-                  ["youtube", "YouTube"],
-                  ["twitch", "Twitch"],
-                  ["kick", "Kick"],
-                  ["outros", "Outros"],
-                ] as const).map(([k, label]) => (
+{([
+                  ["youtube", "YouTube", YoutubeIcon],
+                  ["twitch", "Twitch", TwitchIcon],
+                  ["kick", "Kick", KickIcon],
+                  ["outros", "Outros", Link2],
+                ] as const).map(([k, label, Icon]) => (
                   <button
                     key={k}
                     type="button"
                     onClick={() => setPlatform(k)}
                     className={cn(
-                      "flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                      platform === k ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      "flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      platform === k
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
+                    <Icon className="size-3.5 shrink-0" />
                     {label}
                   </button>
                 ))}
@@ -549,17 +576,6 @@ function SettingsDialogWrapper({ open, onOpenChange }: { open: boolean; onOpenCh
                     clip_durations: e.target.value.split(",").map((x) => Number(x.trim())).filter((n) => n > 0),
                   })}
                   className="h-8"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="w-32 shrink-0 text-muted-foreground">Máx. cortes</label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={settings.max_clips}
-                  onChange={(e) => set({ max_clips: Number(e.target.value) || 8 })}
-                  className="h-8 w-20"
                 />
               </div>
               <div className="flex items-center gap-2">

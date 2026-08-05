@@ -154,7 +154,7 @@ def analyze_content(
     analysis = ContentAnalysis(
         summary=raw.get("summary", "")[:1000] if isinstance(raw.get("summary"), str) else "",
         themes=raw.get("themes", [])[:10] if isinstance(raw.get("themes"), list) else [],
-        highlights=valid[: settings.max_clips * 3],
+        highlights=valid,
         hook_lines=raw.get("hook_lines", [])[:5] if isinstance(raw.get("hook_lines"), list) else [],
         cta_lines=raw.get("cta_lines", [])[:5] if isinstance(raw.get("cta_lines"), list) else [],
     )

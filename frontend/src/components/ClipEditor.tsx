@@ -5,7 +5,9 @@ import {
   Download,
   LayoutTemplate,
   Loader2,
+  Play,
   Scissors,
+  Type,
   Wand2,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -16,7 +18,7 @@ import { Progress } from "@/components/ui/progress"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { TemplateGallery } from "@/components/TemplateGallery"
-import { downloadUrl, editClip, exportClip, regenerateText, splitClip } from "@/lib/api"
+import { downloadUrl, editClip, exportClip, previewClip, regenerateText, splitClip } from "@/lib/api"
 import { cn, fmtTime } from "@/lib/utils"
 import type { Clip, ProjectDetail, Template } from "@/lib/types"
 
@@ -40,6 +42,11 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
   const [exporting, setExporting] = useState(false)
   const [regenerating, setRegenerating] = useState<string | null>(null)
   const [tplOpen, setTplOpen] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState("")
+  const [subStyle, setSubStyle] = useState<Record<string, unknown>>(
+    clip.subtitle_style ?? { style: "tiktok", position: "bottom", words_per_line: 6, animation: "pop" }
+  )
 
   useEffect(() => {
     setDraft({
@@ -52,6 +59,8 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
     })
     setStart(clip.source_start)
     setEnd(clip.source_end)
+    setSubStyle(clip.subtitle_style ?? { style: "tiktok", position: "bottom", words_per_line: 6, animation: "pop" })
+    setPreviewUrl("")
   }, [clip.id])
 
   const dirty =
@@ -127,10 +136,10 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
     }
   }
 
-  const handleExport = async () => {
+  const handleExport = async (force = false) => {
     setExporting(true)
     try {
-      const res = await exportClip(clip.id)
+      const res = await exportClip(clip.id, force)
       if (res.ok) {
         onChanged()
         toast.success("Corte renderizado")
@@ -142,6 +151,34 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
     } finally {
       setExporting(false)
     }
+  }
+
+  const handlePreview = async () => {
+    setPreviewing(true)
+    try {
+      const res = await previewClip(clip.id)
+      if (res.ok) {
+        setPreviewUrl(downloadUrl(res.path))
+        toast.success("Prévia gerada")
+      } else {
+        toast.error(res.error || "Falha ao gerar prévia")
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Falha na prévia")
+    } finally {
+      setPreviewing(false)
+    }
+  }
+
+  const saveSubtitleStyle = (patch: Record<string, unknown>) => {
+    const next = { ...subStyle, ...patch }
+    setSubStyle(next)
+    void editClip(clip.id, { subtitle_style: next })
+      .then(() => {
+        toast.success("Estilo de legenda salvo")
+        onChanged()
+      })
+      .catch((e) => toast.error(e instanceof Error ? e.message : "Falha ao salvar estilo"))
   }
 
   const videoUrl = clip.files?.video ? downloadUrl(clip.files.video) : ""
@@ -261,7 +298,7 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
         >
           Salvar alterações
         </Button>
-        <Button size="sm" className="flex-1" onClick={() => void handleExport()} disabled={exporting || !dirty && !clip.files?.video && false}>
+        <Button size="sm" className="flex-1" onClick={() => void handleExport(!!clip.files?.video)} disabled={exporting || !dirty && !clip.files?.video && false}>
           {exporting ? <Loader2 className="animate-spin" /> : <Clapperboard />}
           {clip.files?.video ? "Re-renderizar" : "Renderizar 1080x1920"}
         </Button>
@@ -286,6 +323,74 @@ export function ClipEditor({ detail, clip, currentTime, onChanged, onSeek }: {
         )}
       </div>
       {exporting && <Progress value={40} className="h-1 animate-pulse" />}
+
+      <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-2.5">
+        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+          <Type className="h-3.5 w-3.5" /> Estilo das legendas do corte
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            <span>Estilo</span>
+            <select
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+              value={String(subStyle.style ?? "tiktok")}
+              onChange={(e) => saveSubtitleStyle({ style: e.target.value })}
+            >
+              <option value="tiktok">TikTok</option>
+              <option value="instagram">Instagram</option>
+              <option value="word_by_word">Palavra por palavra</option>
+              <option value="karaoke">Karaokê</option>
+              <option value="minimal">Minimalista</option>
+            </select>
+          </label>
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            <span>Posição</span>
+            <select
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+              value={String(subStyle.position ?? "bottom")}
+              onChange={(e) => saveSubtitleStyle({ position: e.target.value })}
+            >
+              <option value="bottom">Inferior</option>
+              <option value="middle">Meio</option>
+              <option value="top">Superior</option>
+            </select>
+          </label>
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            <span>Animação</span>
+            <select
+              className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+              value={String(subStyle.animation ?? "pop")}
+              onChange={(e) => saveSubtitleStyle({ animation: e.target.value })}
+            >
+              <option value="pop">Pop</option>
+              <option value="slide">Deslizar</option>
+              <option value="slide_up">Subir</option>
+              <option value="fade">Fade</option>
+              <option value="fade_up">Fade + subir</option>
+            </select>
+          </label>
+          <label className="space-y-1 text-[11px] text-muted-foreground">
+            <span>Palavras por linha: {String(subStyle.words_per_line ?? 6)}</span>
+            <Slider
+              value={[Number(subStyle.words_per_line ?? 6)]}
+              min={2}
+              max={10}
+              step={1}
+              onValueChange={(val) => saveSubtitleStyle({ words_per_line: Array.isArray(val) ? val[0] : val })}
+            />
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Button size="sm" variant="outline" className="w-full" onClick={() => void handlePreview()} disabled={previewing}>
+          {previewing ? <Loader2 className="animate-spin" /> : <Play />}
+          Pré-visualizar corte (rápido, 540x960)
+        </Button>
+        {previewUrl && (
+          <video src={previewUrl} controls playsInline className="w-full rounded-lg border border-border bg-black" />
+        )}
+      </div>
 
       {clip.scores && (
         <>

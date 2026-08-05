@@ -26,7 +26,14 @@ def _words_in_window(transcription_words: list[dict], t0: float, t1: float) -> l
 def all_words(sentences: list[dict]) -> list[dict]:
     out: list[dict] = []
     for s in sentences:
-        out.extend(s["words"])
+        for w in s["words"]:
+            if out:
+                prev = out[-1]
+                same_text = prev.get("word", "").strip().lower() == str(w.get("word", "")).strip().lower()
+                tiny_gap = abs(float(prev.get("start", 0) or 0) - float(w.get("start", 0) or 0)) < 0.2
+                if same_text and tiny_gap:
+                    continue
+            out.append(w)
     return out
 
 
@@ -163,13 +170,26 @@ def render_clip(
     """Renderiza o corte vertical com legendas queimadas e salva thumbnails."""
     from app.services.project import ProjectStore
 
-    style_cfg = subtitle_style or settings.subtitle_style
     base = ProjectStore.folder(project_id)
     clips_dir = Path(out_dir)
     subs_dir = base / "subtitles"
     thumbs_dir = base / "thumbnails"
     for d in (clips_dir, subs_dir, thumbs_dir):
         d.mkdir(parents=True, exist_ok=True)
+
+    # template + estilo das legendas com prioridade: corte > template > global
+    template = None
+    template_id = getattr(clip, "template_id", None)
+    if template_id:
+        from app.services import template_store
+
+        template = template_store.get_template(template_id)
+    style_cfg = (
+        (clip.subtitle_style or {})
+        or (template.subtitle_style_override if template else {})
+        or (subtitle_style or {})
+        or settings.subtitle_style
+    )
 
     name = clean_filename(clip.title or f"corte_{clip.id}")
     video_out = clips_dir / f"{clip.id}_{name}.mp4"
@@ -219,19 +239,15 @@ def render_clip(
     vf = _brand_overlay_vf(vf, getattr(settings, "brand_kit", None))
 
     # aplica template de layout, se o corte tiver um associado
-    template_id = getattr(clip, "template_id", None)
-    if template_id:
-        from app.services import template_store
+    if template is not None:
         from app.services.pipeline import template_render as tpl_render
 
-        tpl = template_store.get_template(template_id)
-        if tpl is not None:
-            vf = tpl_render.apply_template(
-                vf,
-                tpl.model_dump(),
-                duration,
-                subs_dir,
-            )
+        vf = tpl_render.apply_template(
+            vf,
+            template.model_dump(),
+            duration,
+            subs_dir,
+        )
 
     preset, crf = _export_quality_crf(settings.export_quality)
     ff.run_ffmpeg(
@@ -275,6 +291,89 @@ def render_clip(
     if on_progress:
         on_progress(1.0)
     return clip
+
+
+def render_clip_preview(
+    project_id: str,
+    clip: Clip,
+    video_path: str,
+    sentences: list[dict],
+    settings: Settings,
+    out_dir: str,
+    subtitle_style: dict | None = None,
+    max_seconds: float = 4.0,
+) -> str:
+    """Renderiza um preview curto (até `max_seconds`, 540x960, rápido) do corte
+    final, com template e estilo de legenda, para validar antes do render total."""
+    from app.services.project import ProjectStore
+
+    base = ProjectStore.folder(project_id)
+    clips_dir = Path(out_dir)
+    subs_dir = base / "subtitles"
+    clips_dir.mkdir(parents=True, exist_ok=True)
+    subs_dir.mkdir(parents=True, exist_ok=True)
+
+    template = None
+    template_id = getattr(clip, "template_id", None)
+    if template_id:
+        from app.services import template_store
+
+        template = template_store.get_template(template_id)
+    style_cfg = (
+        (clip.subtitle_style or {})
+        or (template.subtitle_style_override if template else {})
+        or (subtitle_style or {})
+        or settings.subtitle_style
+    )
+
+    name = clean_filename(clip.title or f"corte_{clip.id}")
+    video_out = clips_dir / f"{clip.id}_{name}_preview.mp4"
+    ass_path = subs_dir / f"{clip.id}_preview.ass"
+
+    words = _words_in_window(all_words(sentences), clip.source_start, clip.source_end)
+    sub_svc.build_ass(
+        words,
+        clip.source_start,
+        clip.source_end,
+        style_cfg,
+        str(ass_path),
+        getattr(settings, "brand_kit", None),
+    )
+
+    def _filter_path(p: str) -> str:
+        return p.replace("\\", "/").replace(":", "\\\\:")
+
+    ass_path_filter = _filter_path(str(ass_path))
+    duration = clip.duration
+    pv_duration = min(duration, max_seconds)
+    if pv_duration < 0.5:
+        pv_duration = min(duration, 1.0)
+
+    info = ff.media_info(video_path)
+    width, height = info["width"], info["height"]
+    vf = _reframe_vf(width, height, duration, clip.source_start, settings, None, [], ass_path_filter)
+    vf = _brand_overlay_vf(vf, getattr(settings, "brand_kit", None))
+    if template is not None:
+        from app.services.pipeline import template_render as tpl_render
+
+        vf = tpl_render.apply_template(vf, template.model_dump(), duration, subs_dir)
+    vf = f"{vf},scale=540:960:flags=bilinear"
+
+    ff.run_ffmpeg(
+        [
+            "-ss", str(clip.source_start),
+            "-i", video_path,
+            "-t", str(pv_duration),
+            "-vf", vf,
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-crf", "28",
+            "-an",
+            str(video_out),
+        ],
+        duration=pv_duration,
+    )
+    return str(video_out)
 
 
 def render_shorts(

@@ -37,15 +37,16 @@ class ExportAllIn(BaseModel):
 
 
 @router.post("/{clip_id}/export", response_model=ExportResult)
-def export_clip(clip_id: str, settings: Settings = None):
+def export_clip(clip_id: str, force: bool = False, settings: Settings = None):
     settings = settings or Settings.load()
     clips, _ = _load_clip(clip_id)
     c = next((c for c in clips if c["id"] == clip_id), None)
     if not c:
         raise HTTPException(404, "Corte não encontrado")
     project = ProjectStore.require(c["project_id"])
-    if c.get("files", {}).get("video") and Path(c["files"]["video"]).exists():
-        return ExportResult(clip_id=clip_id, ok=True, path=c["files"]["video"])
+    cached = c.get("files", {}).get("video")
+    if not force and cached and Path(cached).exists():
+        return ExportResult(clip_id=clip_id, ok=True, path=cached)
     try:
         clip = Clip.model_validate(c)
         sentences = ProjectStore.read_json(c["project_id"], "sentences.json", [])
@@ -56,6 +57,25 @@ def export_clip(clip_id: str, settings: Settings = None):
         c.update(clip.model_dump())
         _save_clips(c["project_id"], clips)
         return ExportResult(clip_id=clip_id, ok=True, path=clip.files.video)
+    except Exception as e:
+        return ExportResult(clip_id=clip_id, ok=False, error=str(e))
+
+
+@router.post("/{clip_id}/preview", response_model=ExportResult)
+def preview_clip(clip_id: str, settings: Settings = None):
+    """Renderiza um preview curto (540x960) do corte com template/legenda."""
+    settings = settings or Settings.load()
+    clips, _ = _load_clip(clip_id)
+    c = next((c for c in clips if c["id"] == clip_id), None)
+    if not c:
+        raise HTTPException(404, "Corte não encontrado")
+    project = ProjectStore.require(c["project_id"])
+    try:
+        clip = Clip.model_validate(c)
+        sentences = ProjectStore.read_json(c["project_id"], "sentences.json", [])
+        clips_dir = str(ProjectStore.path(c["project_id"], "clips"))
+        path = export.render_clip_preview(c["project_id"], clip, project.source, sentences, settings, clips_dir)
+        return ExportResult(clip_id=clip_id, ok=True, path=path)
     except Exception as e:
         return ExportResult(clip_id=clip_id, ok=False, error=str(e))
 
@@ -95,6 +115,10 @@ def edit_clip(clip_id: str, body: ClipEditIn):
     if body.source_start is not None and body.source_end is not None:
         c["duration"] = round(body.source_end - body.source_start, 2)
         # invalida vídeo renderizado (precisa re-render)
+        c["files"] = {}
+    # trocar template/legenda exige re-render do vídeo
+    changed = body.model_dump(exclude_unset=True)
+    if "template_id" in changed or "subtitle_style" in changed:
         c["files"] = {}
     _save_clips(c["project_id"], clips)
     return Clip.model_validate(c)

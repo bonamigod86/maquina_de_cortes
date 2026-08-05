@@ -116,6 +116,7 @@ export function editClip(
     source_end: number
     feedback: string | null
     template_id: string | null
+    subtitle_style: Record<string, unknown> | null
   }>,
 ): Promise<Clip> {
   return req(`/clips/${clipId}`, {
@@ -157,8 +158,12 @@ export function regenerateText(clipId: string, field: string, promptHint = ""): 
   })
 }
 
-export function exportClip(clipId: string): Promise<{ clip_id: string; ok: boolean; path: string; error: string }> {
-  return req(`/clips/${clipId}/export`, { method: "POST" })
+export function exportClip(clipId: string, force = false): Promise<{ clip_id: string; ok: boolean; path: string; error: string }> {
+  return req(`/clips/${clipId}/export${force ? "?force=true" : ""}`, { method: "POST" })
+}
+
+export function previewClip(clipId: string): Promise<{ clip_id: string; ok: boolean; path: string; error: string }> {
+  return req(`/clips/${clipId}/preview`, { method: "POST" })
 }
 
 // ---- templates ----
